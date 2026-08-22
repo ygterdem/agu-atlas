@@ -170,6 +170,11 @@ baloncuk düz renk olarak görünür.
 
 ---
 
+Kararlar, ayar düğmeleri ve geliştirme notları: [NOTLAR.md](NOTLAR.md)
+Testler: [tests/](tests/)
+
+---
+
 ## 📁 Dosyalar
 
 ```
@@ -182,6 +187,8 @@ assets/*.png          ortadaki logo
 assets/editor.css     düzenleyici görünümü
 assets/editor.js      düzenleyici motoru
 data/atlas-data.js    ← VERİ (düzenleyicinin ürettiği dosya)
+NOTLAR.md             kararlar, ayar düğmeleri
+tests/                tarayıcıda koşan testler
 .nojekyll             GitHub Pages'in dosyaları olduğu gibi sunması için
 ```
 
