@@ -187,3 +187,7 @@ code.out{
 }
 .ac-hint b{color:#fff}
 #r-input.alias-mode{border-color:rgba(126,166,255,.7);background:rgba(126,166,255,.06)}
+
+#r-clanedit{padding:3px 8px;font-size:11px;text-transform:none;letter-spacing:0}
+#r-clanedit.on{color:#0a0d18;background:var(--accent);border-color:var(--accent)}
+.squad table.t{margin-top:4px}

@@ -67,6 +67,7 @@ Kod yazmadan, form doldurarak veri girersin:
 | Sekme | Ne yapar |
 |---|---|
 | **Kadro** | Asıl kullanacağın ekran. Soldan videoyu seç, sağda o videoda oynayanları yaz. İsmi yazıp Enter'a bas; oyuncu yoksa anında oluşturulur. Sık oynayanlar “Hızlı ekle” olarak tek tıkla eklenir. Listede zaten eklediğin kişiler “zaten eklendi ✓” diye görünür, eski adlar da aranır, bilinmeyen bir adı mevcut birinin eski adı olarak bağlayabilirsin. |
+| ↳ *o dönemki klanlar* | Kadro ekranındaki düğme. Bir kişinin **bu videodaki** klanını ayrıca seçersin; klan değiştirenlerin geçmişi böyle oluşur. Dokunmazsan kişinin şu anki klanı geçerli olur. |
 | **Videolar** | YouTube linkini yapıştır → başlık otomatik çekilir, video id'si linkten üretilir. |
 | **Oyuncular** | İsim, **diğer adlar**, klan, kanal linki, not düzenleme. Video sayısı kadrodan gelir, elle girilmez. |
 | **Klanlar** | Etiket, ad, renk. Etiketi değiştirirsen o klandaki oyuncular otomatik taşınır. Tanımsız etiket kalmışsa tek tıkla düzeltir. |
@@ -104,13 +105,24 @@ kadar site değişmez.
 **`players`** — oyuncular
 
 ```js
-{ name: "Kerem", clan: "TPS", videos: ["v1","v3","v4"],
-  aliases: ["eski_kerem", "KRM"], link: "", note: "" }
+{ name: "Kerem", clan: "K2", videos: ["v1","v3","v4"],
+  aliases: ["eski_kerem", "KRM"],
+  clanAt: { "v1": "IMBZ" },
+  link: "", note: "" }
 ```
 
 `videos` → oyuncunun göründüğü video id'leri.
 **Boyut ve merkeze yakınlık bu listenin uzunluğundan otomatik hesaplanır.**
 Klanı yoksa `clan: ""` bırak.
+
+`clanAt` → **o videodaki klan** (isteğe bağlı). Biri zamanla klan
+değiştirdiyse, hangi videoda hangi klanda olduğunu buraya yaz. Yazmadığın
+videolarda kişinin `clan` alanı geçerlidir. Haritada baloncuğun rengi ve
+kümesi her zaman **şu anki** klanına göre; geçmiş ise detay panelinde
+“Klan geçmişi” olarak dönem dönem görünür (örn. `IMBZ 2 video · 2022–2023
+→ K2 5 video · 2024–2025`) ve eski klanın adıyla da arayabilirsin.
+Düzenleyicide Kadro sekmesindeki “o dönemki klanları düzenle” düğmesi bunu
+tek tek seçmeni sağlar.
 
 `aliases` → **diğer adları** (isteğe bağlı). Biri zaman içinde ismini
 değiştirdiyse eski adlarını buraya yaz. O kişi haritada tek baloncuk olarak

@@ -67,6 +67,7 @@
       id: "p" + i,
       name: p.name,
       aliases: (p.aliases || []).map(function (a) { return String(a).trim(); }).filter(Boolean),
+      clanAt: p.clanAt || {},
       clan: tag,
       videos: vids,
       missing: (p.videos || []).length - vids.length,
@@ -100,6 +101,32 @@
       .filter(Boolean).sort();
     p.lastDate = ds.length ? ds[ds.length - 1] : "";
     p.firstDate = ds.length ? ds[0] : "";
+  });
+
+  // Klan geçmişi: her video için o dönemki klan (clanAt) yoksa mevcut klan.
+  // Ardışık aynı klanlar tek bir döneme birleştirilir.
+  players.forEach(function (p) {
+    var items = p.videos.map(function (id) {
+      var v = videoById[id];
+      var at = p.clanAt && p.clanAt[id];
+      var tag = (at === undefined || at === null) ? p.clan : String(at);
+      if (!tag || !clanByTag[tag]) tag = CFG.NO_CLAN.tag;
+      return { id: id, date: (v && v.date) || "", tag: tag };
+    }).sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+
+    var spans = [];
+    items.forEach(function (it) {
+      var last = spans[spans.length - 1];
+      if (last && last.tag === it.tag) { last.to = it.date || last.to; last.n++; }
+      else spans.push({ tag: it.tag, from: it.date, to: it.date, n: 1 });
+    });
+    p.clanItems = {};
+    items.forEach(function (it) { p.clanItems[it.id] = it.tag; });
+    p.history = spans;
+    p.formerClans = [];
+    spans.forEach(function (sp) {
+      if (sp.tag !== p.clan && p.formerClans.indexOf(sp.tag) === -1) p.formerClans.push(sp.tag);
+    });
   });
 
   // Aynı video sayısına sahip oyuncular arasında sıralamayı tarih belirler:
@@ -164,7 +191,11 @@
     p.ty = Math.sin(p.angle) * p.home;
     p.x = p.tx; p.y = p.ty;
     p.search = [norm(p.name), norm(c.name), norm(c.tag)]
-      .concat(p.aliases.map(norm)).join(" ");
+      .concat(p.aliases.map(norm))
+      .concat(p.formerClans.map(function (t) {
+        var fc = clanByTag[t];
+        return fc ? norm(fc.name) + " " + norm(fc.tag) : norm(t);
+      })).join(" ");
   });
 
   var nodes = [center].concat(players);
@@ -446,7 +477,12 @@
   function render() {
     node
       .style("display", function (d) { return isVisible(d) ? null : "none"; })
-      .classed("faded", function (d) { return !d.isCenter && (!matches(d) || (state.selected && state.selected !== d.id && !isNeighbourOfSelected(d))); });
+      .classed("faded", function (d) {
+        if (d.isCenter) return false;
+        if (!matches(d)) return true;
+        if (state.query) return false;   // arama varken seçim soldurmasın
+        return !!(state.selected && state.selected !== d.id && !isNeighbourOfSelected(d));
+      });
     link
       .style("display", function (d) { return isVisible(d.target) ? null : "none"; })
       .attr("stroke-opacity", function (d) {
@@ -494,6 +530,10 @@
       tip.innerHTML =
         "<div class='tt-clan' style='color:" + d.color + "'>" + esc(d.clanName) + "</div>" +
         "<b>" + esc(d.name) + "</b>" +
+        (d.formerClans.length
+          ? "<div class='tt-meta'>eskiden: " +
+            esc(d.formerClans.map(clanLabel).join(", ")) + "</div>"
+          : "") +
         (d.aliases.length
           ? "<div class='tt-meta'>diğer adları: " +
             esc(d.aliases.slice(0, 3).join(", ")) + (d.aliases.length > 3 ? " …" : "") + "</div>"
@@ -529,10 +569,24 @@
     render();
   }
 
-  function videoRow(v) {
+  function clanLabel(tag) {
+    var c = clanByTag[tag];
+    return c ? c.name : (tag || CFG.NO_CLAN.name);
+  }
+  function clanColorOf(tag) {
+    var c = clanByTag[tag];
+    return c ? c.color : CFG.NO_CLAN.color;
+  }
+  function yearOf(d) { return d ? String(d).slice(0, 4) : ""; }
+
+  function videoRow(v, atTag) {
+    var meta = [esc(v.game || ""), fmtDate(v.date)];
+    if (atTag !== undefined && atTag !== null && atTag !== "") {
+      meta.push("<span style='color:" + clanColorOf(atTag) + "'>" + esc(clanLabel(atTag)) + "</span>");
+    }
     return "<a class='vid' href='" + esc(v.url || "#") + "' target='_blank' rel='noopener'>" +
       "<span class='play'>▶</span><span><span class='vtitle'>" + esc(v.title) + "</span>" +
-      "<span class='vmeta'>" + [esc(v.game || ""), fmtDate(v.date)].filter(Boolean).join(" · ") + "</span></span></a>";
+      "<span class='vmeta'>" + meta.filter(Boolean).join(" · ") + "</span></span></a>";
   }
 
   function playerPanel(d) {
@@ -565,7 +619,24 @@
         }).join("") + "</div>";
     }
 
-    h += "<div class='p-sec'>Birlikte oynadığımız videolar</div>" + vids.map(videoRow).join("");
+    if (d.history.length > 1) {
+      h += "<div class='p-sec'>Klan geçmişi</div><div class='chips'>" +
+        d.history.map(function (sp, i) {
+          var yr = yearOf(sp.from), yr2 = yearOf(sp.to);
+          var when = yr ? (yr === yr2 ? yr : yr + "–" + yr2) : "";
+          var col = clanColorOf(sp.tag);
+          return (i ? "<span style='align-self:center;color:var(--ink-dim)'>→</span>" : "") +
+            "<span class='chip' style='cursor:default;border-color:" + col + "55;background:" +
+            col + "18'>" + esc(clanLabel(sp.tag)) +
+            "<span style='opacity:.6'> " + sp.n + " video" + (when ? " · " + when : "") + "</span></span>";
+        }).join("") + "</div>";
+    }
+
+    h += "<div class='p-sec'>Birlikte oynadığımız videolar</div>" +
+      vids.map(function (v) {
+        var at = d.clanItems[v.id];
+        return videoRow(v, at !== d.clan ? at : "");
+      }).join("");
 
     if (mates.length) {
       h += "<div class='p-sec'>Aynı klandan</div><div class='chips'>" +

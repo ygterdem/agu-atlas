@@ -12,6 +12,7 @@
   var selVideo = null;      // kadro ekranında seçili video id
   var acIndex = -1;         // autocomplete'te seçili satır
   var aliasPending = null;  // "bu ad kimin eski adı?" modunda bekleyen ad
+  var clanEdit = false;     // kadroda "o dönemki klan" düzenleme modu
   var NL = String.fromCharCode(10);   // confirm() metinlerinde satır sonu
 
   // ------------------------------------------------------------ yardımcılar
@@ -72,6 +73,11 @@
       return {
         name: p.name || "", clan: String(p.clan || ""),
         aliases: (p.aliases || []).map(function (a) { return String(a).trim(); }).filter(Boolean),
+        clanAt: (function (m) {
+          var o = {};
+          Object.keys(m || {}).forEach(function (k) { o[k] = String(m[k] == null ? "" : m[k]); });
+          return o;
+        })(p.clanAt),
         videos: (p.videos || []).map(String),
         link: p.link || "", note: p.note || ""
       };
@@ -132,6 +138,14 @@
     return out;
   }
   function inVideo(p, vid) { return p.videos.indexOf(vid) !== -1; }
+  // O videodaki klan: özel olarak girilmişse o, yoksa oyuncunun şu anki klanı.
+  function clanAtVideo(p, vid) {
+    var at = p.clanAt && p.clanAt[vid];
+    return (at === undefined || at === null) ? p.clan : at;
+  }
+  function hasClanOverride(p, vid) {
+    return !!(p.clanAt && Object.prototype.hasOwnProperty.call(p.clanAt, vid));
+  }
   function squadOf(vid) { return M.players.filter(function (p) { return inVideo(p, vid); }); }
 
   function newVideoId(url) {
@@ -206,7 +220,11 @@
             .filter(Boolean).join(" · ") +
         "</div>" +
       "</div>" +
-      "<div class='sec-label'>Bu videoda oynayanlar</div>" +
+      "<div class='sec-label' style='display:flex;align-items:center;gap:10px'>" +
+        "<span>Bu videoda oynayanlar</span>" +
+        "<button class='btn sm ghost' id='r-clanedit'>" +
+          (clanEdit ? "\u2713 o d\u00f6nemki klanlar" : "o d\u00f6nemki klanlar\u0131 d\u00fczenle") +
+        "</button></div>" +
       "<div class='squad' id='r-squad'></div>" +
       "<div class='ac-hint' id='r-hint' hidden></div>" +
       "<div class='ac-wrap' style='margin-top:12px'>" +
@@ -217,34 +235,97 @@
       "<div class='squad' id='r-quick'></div>";
 
     renderSquad();
+    var ce = $("r-clanedit");
+    if (ce) {
+      ce.classList.toggle("on", clanEdit);
+      ce.onclick = function () { clanEdit = !clanEdit; renderRoster(); };
+    }
     wireAutocomplete();
     var inp = $("r-input");
     if (inp) inp.focus();
   }
 
+  // Kadro satirlarinda "o donemki klan" secici
+  function clanPickOptions(p, vid) {
+    var cur = clanAtVideo(p, vid);
+    var over = hasClanOverride(p, vid);
+    var html = "<option value='-1'" + (over ? "" : " selected") + ">\u21ba \u015fu anki klan\u0131 (" +
+      esc(clanName(p.clan)) + ")</option>";
+    html += "<option value='-2'" + (over && cur === "" ? " selected" : "") + ">\u2014 Ba\u011f\u0131ms\u0131z \u2014</option>";
+    M.clans.forEach(function (c, i) {
+      html += "<option value='" + i + "'" + (over && cur === c.tag ? " selected" : "") + ">" +
+        esc(c.name) + "</option>";
+    });
+    return html;
+  }
+
   function renderSquad() {
     var squad = squadOf(selVideo).sort(function (a, b) { return a.name.localeCompare(b.name, "tr"); });
+
+    if (clanEdit) {
+      $("r-squad").innerHTML = squad.length
+        ? "<div class='tbl-wrap' style='width:100%'><table class='t'><thead><tr>" +
+            "<th style='min-width:150px'>Oyuncu</th><th style='min-width:190px'>Bu videodaki klan</th><th></th>" +
+            "</tr></thead><tbody>" +
+            squad.map(function (p) {
+              var col = clanColor(clanAtVideo(p, selVideo));
+              return "<tr data-n='" + esc(p.name) + "'>" +
+                "<td><span class='swatch' style='display:inline-block;width:9px;height:9px;" +
+                  "border-radius:50%;background:" + col + ";margin-right:7px'></span>" + esc(p.name) + "</td>" +
+                "<td><select data-clanat='" + esc(p.name) + "'>" + clanPickOptions(p, selVideo) + "</select></td>" +
+                "<td><button class='btn sm danger' data-rm='" + esc(p.name) + "'>\u00d7</button></td></tr>";
+            }).join("") + "</tbody></table></div>"
+        : "<span style='font-size:12.5px;color:var(--ink-dim)'>Hen\u00fcz kimse yok.</span>";
+
+      $("r-squad").querySelectorAll("[data-clanat]").forEach(function (sel) {
+        sel.onchange = function () {
+          var p = playerByName(sel.getAttribute("data-clanat"));
+          if (!p) return;
+          p.clanAt = p.clanAt || {};
+          var v = +sel.value;
+          if (v === -1) delete p.clanAt[selVideo];
+          else if (v === -2) p.clanAt[selVideo] = "";
+          else p.clanAt[selVideo] = M.clans[v].tag;
+          persist(); renderAll();
+        };
+      });
+      wireSquadRemove();
+      renderQuick();
+      return;
+    }
+
     $("r-squad").innerHTML = squad.length
       ? squad.map(function (p) {
           var al = (p.aliases || []).length
             ? " title='Diğer adları: " + esc(p.aliases.join(", ")) + "'" : "";
+          var atTag = clanAtVideo(p, selVideo);
+          var diff = atTag !== p.clan;
           return "<span class='pchip'" + al + "><span class='swatch' style='background:" +
-            clanColor(p.clan) + "'></span>" + esc(p.name) +
+            clanColor(atTag) + (diff ? ";box-shadow:0 0 0 2px rgba(255,255,255,.35)" : "") +
+            "'></span>" + esc(p.name) +
             ((p.aliases || []).length ? "<span style='color:var(--ink-dim);font-size:11px'>+" +
               p.aliases.length + "</span>" : "") +
             "<button data-rm='" + esc(p.name) + "' title='Kadrodan çıkar'>×</button></span>";
         }).join("")
       : "<span style='font-size:12.5px;color:var(--ink-dim);align-self:center'>Henüz kimse yok.</span>";
 
+    wireSquadRemove();
+    renderQuick();
+  }
+
+  function wireSquadRemove() {
     $("r-squad").querySelectorAll("[data-rm]").forEach(function (b) {
       b.onclick = function () {
         var p = playerByName(b.getAttribute("data-rm"));
         if (!p) return;
         p.videos = p.videos.filter(function (x) { return x !== selVideo; });
+        if (p.clanAt) delete p.clanAt[selVideo];
         persist(); renderAll();
       };
     });
+  }
 
+  function renderQuick() {
     var others = M.players.filter(function (p) { return !inVideo(p, selVideo); })
       .sort(function (a, b) { return b.videos.length - a.videos.length || a.name.localeCompare(b.name, "tr"); })
       .slice(0, 24);
@@ -498,6 +579,7 @@
         M.videos = M.videos.filter(function (x) { return x.id !== id; });
         M.players.forEach(function (p) {
           p.videos = p.videos.filter(function (x) { return x !== id; });
+          if (p.clanAt) delete p.clanAt[id];
         });
         if (selVideo === id) selVideo = null;
         persist(); renderAll(); toast("Video silindi");
@@ -693,7 +775,12 @@
             var other = clanByTag(val);
             if (other && other !== c) { toast("Bu etiket zaten var", "bad"); renderAll(); return; }
             var old = c.tag, moved = 0;
-            M.players.forEach(function (p) { if (p.clan === old) { p.clan = val; moved++; } });
+            M.players.forEach(function (p) {
+              if (p.clan === old) { p.clan = val; moved++; }
+              Object.keys(p.clanAt || {}).forEach(function (k) {
+                if (p.clanAt[k] === old) p.clanAt[k] = val;
+              });
+            });
             c.tag = val;
             if (moved) toast(moved + " oyuncu yeni etikete taşındı", "good");
           } else {
@@ -709,7 +796,12 @@
         var n = M.players.filter(function (p) { return p.clan === c.tag; }).length;
         if (!confirm("“" + c.name + "” klanı silinsin mi?" +
           (n ? "\n" + n + " oyuncu “Bağımsız” olacak (oyuncular silinmez)." : ""))) return;
-        M.players.forEach(function (p) { if (p.clan === c.tag) p.clan = ""; });
+        M.players.forEach(function (p) {
+          if (p.clan === c.tag) p.clan = "";
+          Object.keys(p.clanAt || {}).forEach(function (k) {
+            if (p.clanAt[k] === c.tag) p.clanAt[k] = "";
+          });
+        });
         M.clans.splice(M.clans.indexOf(c), 1);
         persist(); renderAll(); toast("Klan silindi");
       };
@@ -779,6 +871,14 @@
       p.videos.forEach(function (vid) {
         if (!videoById(vid)) out.push("<b>" + esc(p.name) + "</b> oyuncusunda olmayan video id'si: <b>" + esc(vid) + "</b>");
       });
+      Object.keys(p.clanAt || {}).forEach(function (vid) {
+        if (p.videos.indexOf(vid) === -1) return;   // kadrodan çıkmışsa dosyaya yazılmıyor
+        var t = p.clanAt[vid];
+        if (t && !clanByTag(t)) {
+          out.push("<b>" + esc(p.name) + "</b> oyuncusunun bir videodaki klanı <b>" + esc(t) +
+            "</b> ama böyle bir klan yok.");
+        }
+      });
     });
     return out;
   }
@@ -841,6 +941,10 @@
       var s = "    { name: " + q(p.name) + ", clan: " + q(p.clan) +
         ", videos: [" + p.videos.map(q).join(", ") + "]";
       if ((p.aliases || []).length) s += ", aliases: [" + p.aliases.map(q).join(", ") + "]";
+      var ck = Object.keys(p.clanAt || {}).filter(function (k) { return p.videos.indexOf(k) !== -1; });
+      if (ck.length) {
+        s += ", clanAt: { " + ck.map(function (k) { return q(k) + ": " + q(p.clanAt[k]); }).join(", ") + " }";
+      }
       if (p.link) s += ", link: " + q(p.link);
       if (p.note) s += ", note: " + q(p.note);
       return s + " }";
