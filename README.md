@@ -6,6 +6,12 @@ oynayan herkes birbirine bağlanır, bağın gücü kaç ayrı videoda birlikte
 oynadıklarıdır. Yerleşimi bu bağlar belirler, dolayısıyla hep beraber oynayan
 insanlar haritada kendiliğinden bir **küme** oluşturur.
 
+Ben her videoda olduğum için **herkes bana da bağlıdır**. Bu bağlar haritayı
+tek parça tutar (hiçbir küme kopuk bir ada olarak savrulmaz) ve merkeze
+uzaklığı tarihe göre ayarlar. Tekerleğe dönmesin diye oyuncular arası
+bağlardan çok daha soluk çizilirler; gücü `HUB_PULL`, görünürlüğü
+`HUB_ALPHA` ile ayarlanır.
+
 - **Baloncuk boyutu** = kaç videoda çıktığı.
 - **Merkeze yakınlık** = en son ne zaman birlikte oynandığı. Bu artık kesin
   bir halka değil, bir eğilim: kümelenme onu bir miktar esnetir. Ne kadar

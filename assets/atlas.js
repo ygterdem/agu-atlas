@@ -13,7 +13,9 @@
     BUBBLE_PAD: 4,     // baloncuklar arası boşluk
     RECENCY_PULL: 0.22,// merkeze uzaklık ne kadar tarihe uysun (0 = sadece kümeler)
     TEAM_MIN: 4,       // kaç kişilik public grubu kendi rengini alsın
-    LINK_ALPHA: 0.14,  // bağlantı çizgilerinin görünürlüğü
+    LINK_ALPHA: 0.14,  // oyuncular arası bağların görünürlüğü
+    HUB_ALPHA: 0.11,   // bana giden bağların görünürlüğü
+    HUB_PULL: 0.20,    // bana giden bağların çekim gücü
     CHARGE: -70,       // baloncukların birbirini itmesi (küme aralığı)
     R_MIN: 10,         // en az videoda çıkanın baloncuk yarıçapı
     R_MAX: 34,         // en çok videoda çıkanın baloncuk yarıçapı
@@ -276,6 +278,7 @@
     });
     if (undated) byMonth[""] = CFG.R_FAR;
     players.forEach(function (p) { p.recR = byMonth[monthKey(p.lastDate)]; });
+    center.recR = 0;
   })();
 
   // Ortak oynama bağları.
@@ -297,6 +300,12 @@
     });
     return out;
   })();
+
+  // Ben her videodayım: herkes bana da bağlı. Bu bağlar hem haritayı tek
+  // parça tutuyor (kimse kopuk bir ada olarak savrulmuyor) hem de merkeze
+  // uzaklığın tarihe göre ayarlanmasını sağlıyor. Çizimde çok soluklar ki
+  // harita yine tekerleğe dönmesin.
+  var hubLinks = players.map(function (p) { return { source: center, target: p }; });
 
   // Başlangıç konumları (altın açı sarmalı) — her açılışta aynı sonuç.
   players.forEach(function (p, i) {
@@ -366,6 +375,15 @@
     return Object.keys(by).map(function (c) { return { color: c, list: by[c] }; });
   })();
 
+  // Bana giden bağlar en altta, çok soluk.
+  var gHub = root.insert("g", ".links").attr("class", "hublinks");
+  var hubPath = gHub.append("path")
+    .attr("fill", "none")
+    .attr("stroke", "#c9d3f2")
+    .attr("stroke-opacity", CFG.HUB_ALPHA)
+    .attr("stroke-width", 0.55)
+    .attr("d", "");
+
   var link = gLinks.selectAll("path").data(linkGroups).join("path")
     .attr("class", "link")
     .attr("fill", "none")
@@ -411,14 +429,20 @@
     center.x = 0; center.y = 0; center.fx = 0; center.fy = 0;
     players.forEach(function (p) { p.fx = null; p.fy = null; });
 
-    var sim = d3.forceSimulation(players)
+    var sim = d3.forceSimulation(nodes)
       .force("link", d3.forceLink(coLinks)
         .id(function (d) { return d.id; })
         .distance(function (l) { return Math.max(18, 90 / l.w); }))
-      .force("charge", d3.forceManyBody().strength(CFG.CHARGE).distanceMax(900))
+      .force("hub", d3.forceLink(hubLinks)
+        .id(function (d) { return d.id; })
+        .distance(function (l) { return l.target.recR; })
+        .strength(CFG.HUB_PULL))
+      .force("charge", d3.forceManyBody()
+        .strength(function (d) { return d.isCenter ? -1500 : CFG.CHARGE; })
+        .distanceMax(900))
       .force("collide", d3.forceCollide(function (d) { return d.r + CFG.BUBBLE_PAD; }).iterations(2))
-      .force("recency", d3.forceRadial(function (d) { return d.recR; }, 0, 0)
-        .strength(CFG.RECENCY_PULL))
+      .force("recency", d3.forceRadial(function (d) { return d.recR || 0; }, 0, 0)
+        .strength(function (d) { return d.isCenter ? 0 : CFG.RECENCY_PULL; }))
       .alphaDecay(0.025)
       .stop();
 
@@ -431,6 +455,7 @@
   }
 
   function draw() {
+    hubPath.attr("d", edgePath(hubLinks));
     link.attr("d", function (g) { return edgePath(g.list); });
     node.attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; });
   }
@@ -567,11 +592,13 @@
     // Bağ katmanı: tek tek değil topluca sönümlenir (15 binden fazla bağ var).
     var dim = !!(state.query || state.selected);
     gLinks.attr("opacity", dim ? 0.28 : 1);
+    gHub.attr("opacity", dim ? 0.35 : 1);
 
     // Seçili oyuncunun bağları öne çıkar.
     if (state.selected && playerById[state.selected]) {
       var sel = playerById[state.selected];
       var mine = coLinks.filter(function (l) { return l.source === sel || l.target === sel; });
+      mine = mine.concat(hubLinks.filter(function (l) { return l.target === sel; }));
       hiPath.attr("stroke", sel.color).attr("d", edgePath(mine));
     } else {
       hiPath.attr("d", "");
