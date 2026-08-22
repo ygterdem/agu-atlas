@@ -8,10 +8,13 @@
 
   // ----------------------------------------------------------------- ayarlar
   var CFG = {
-    R_NEAR: 120,       // en son birlikte oynadıklarımın merkeze uzaklığı
-    BUBBLE_PAD: 5,     // baloncuklar arası boşluk
-    MONTH_GAP: 14,     // aylar arası boşluk (ay başına)
-    MONTH_GAP_MAX: 10, // en fazla kaç aylık boşluk sayılsın
+    R_NEAR: 130,       // en son birlikte oynadıklarımın merkeze uzaklığı
+    R_FAR: 620,        // uzun zamandır oynamadıklarımın merkeze uzaklığı
+    BUBBLE_PAD: 4,     // baloncuklar arası boşluk
+    RECENCY_PULL: 0.22,// merkeze uzaklık ne kadar tarihe uysun (0 = sadece kümeler)
+    TEAM_MIN: 4,       // kaç kişilik public grubu kendi rengini alsın
+    LINK_ALPHA: 0.14,  // bağlantı çizgilerinin görünürlüğü
+    CHARGE: -70,       // baloncukların birbirini itmesi (küme aralığı)
     R_MIN: 10,         // en az videoda çıkanın baloncuk yarıçapı
     R_MAX: 34,         // en çok videoda çıkanın baloncuk yarıçapı
     R_CENTER: 46,      // merkez baloncuk yarıçapı
@@ -115,8 +118,7 @@
     .sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name, "tr"); });
   var publicClan = clanByTag[CFG.NO_CLAN.tag];
   var hasPublic = publicClan.count > 0;
-  // Efsanede (legend) yine görünsün ki filtrelenebilsin.
-  var legendList = clanList.concat(hasPublic ? [publicClan] : []);
+  // Efsanedeki (legend) liste, takımlar bulunduktan sonra kurulacak.
 
   var maxCount = d3.max(players, function (d) { return d.count; }) || 1;
   var rScale = d3.scaleSqrt().domain([1, Math.max(2, maxCount)]).range([CFG.R_MIN, CFG.R_MAX]).clamp(true);
@@ -183,28 +185,7 @@
     r: CFG.R_CENTER, fx: 0, fy: 0, x: 0, y: 0
   };
 
-  // ---- yerleşim ----
-  // Açı: klanlar ve public grupları birer blok; blok genişliği üye sayısıyla
-  // orantılı. Yarıçap: ay bantları, yeniden eskiye. Bir bantta bir bloğun
-  // üyeleri yaya sığmıyorsa bant o blok için yeni bir sıra açar.
-  var TAU = Math.PI * 2, TOP = -Math.PI / 2;
   var publics = players.filter(function (p) { return p.clan === CFG.NO_CLAN.tag; });
-  var clanMembers = {};
-  players.forEach(function (p) {
-    if (p.clan === CFG.NO_CLAN.tag) return;
-    (clanMembers[p.clan] = clanMembers[p.clan] || []).push(p);
-  });
-
-  function width(p) { return 2 * p.r + CFG.BUBBLE_PAD; }   // baloncuğun kapladığı yay uzunluğu
-
-  // Ay bantları: en yeni içte.
-  var monthKeys = (function () {
-    var seen = {};
-    players.forEach(function (p) { seen[monthKey(p.lastDate)] = 1; });
-    var dated = Object.keys(seen).filter(Boolean).sort().reverse();
-    return dated.concat(seen[""] ? [""] : []);
-  })();
-  var bands = {};   // key -> {r0, thick, rows}
 
   // Public'ler klansız ama gruplaşabilir: birbirleriyle CFG.PUBLIC_GROUP_MIN
   // veya daha fazla AYRI videoda oynayanlar aynı takım sayılır ve haritada
@@ -252,126 +233,85 @@
     return groups;
   })();
 
-  // Blokları kur (klanlar büyükten küçüğe, aralarda public grupları).
-  var blocks = [];
-  if (!clanList.length) {
-    var flat = [];
-    publicGroups.forEach(function (g) { g.forEach(function (p) { flat.push(p); }); });
-    blocks.push({ list: flat });
-  } else {
-    var buckets = [];
-    for (var gi = 0; gi < clanList.length; gi++) buckets.push([]);
-    publicGroups.forEach(function (g) {
-      var best = 0;
-      for (var i = 1; i < buckets.length; i++) if (buckets[i].length < buckets[best].length) best = i;
-      g.forEach(function (p) { buckets[best].push(p); });
-    });
-    clanList.forEach(function (c, i) {
-      blocks.push({ clan: c, list: clanMembers[c.tag] || [] });
-      blocks.push({ list: buckets[i] });
-    });
-  }
+  // Klanı olmayan ama hep birlikte oynayanlar birer "takım": haritada kendi
+  // renklerini alıyorlar, böylece kümeler referanstaki gibi renkle okunuyor.
+  var teams = [];
+  publicGroups.forEach(function (g) {
+    if (g.length < CFG.TEAM_MIN) return;
+    var i = teams.length;
+    var t = {
+      tag: "__team" + i,
+      name: "Takım " + (i + 1),
+      color: d3.hsl((32 + i * 137.508) % 360, 0.62, 0.62).formatHex(),
+      count: g.length,
+      isTeam: true
+    };
+    teams.push(t);
+    g.forEach(function (p) { p.teamTag = t.tag; p.team = t; });
+  });
+  var legendList = clanList.concat(teams).concat(
+    publics.length > teams.reduce(function (a, t) { return a + t.count; }, 0)
+      ? [publicClan] : []);
+  publicClan.count = publics.length - teams.reduce(function (a, t) { return a + t.count; }, 0);
 
-  // Her bloğa çemberde SABİT bir dilim veriyoruz; böylece bir klan ya da
-  // birlikte oynayan bir public grubu, hangi ay bandında olursa olsun hep
-  // aynı yönde kalır ve bir arada okunur.
-  //
-  // Dilim genişliği, bloğun EN KALABALIK ayına göre: o ayda tek sıraya
-  // sığsın, diğer aylarda da bol bol yeri olsun.
-  var monthOf = {};
-  players.forEach(function (p) { monthOf[p.id] = monthKey(p.lastDate); });
+  // ---- yerleşim ----
+  // Artık merkeze giden tekerlek parmakları yok. Oyuncular BİRBİRİNE bağlı:
+  // aynı videoda oynayan herkes arasında bir bağ var, bağın gücü kaç ayrı
+  // videoda birlikte oynadıklarıdır. Kuvvet simülasyonu bu bağlardan doğal
+  // kümeler çıkarır — hep beraber oynayanlar kendiliğinden bir öbek olur.
+  var TAU = Math.PI * 2;
 
+  // Merkeze uzaklık hedefi: en son ne zaman birlikte oynadığımız.
   (function () {
-    blocks.forEach(function (b) {
-      var per = {};
-      b.list.forEach(function (p) {
-        var k = monthOf[p.id];
-        per[k] = (per[k] || 0) + width(p);
-      });
-      var mx = 0;
-      Object.keys(per).forEach(function (k) { if (per[k] > mx) mx = per[k]; });
-      b.weight = Math.max(mx, 1);
+    var seen = {};
+    players.forEach(function (p) { seen[monthKey(p.lastDate)] = 1; });
+    var dated = Object.keys(seen).filter(Boolean).sort().reverse();
+    var undated = !!seen[""];
+    var n = dated.length;
+    var byMonth = {};
+    dated.forEach(function (k, i) {
+      byMonth[k] = n > 1
+        ? CFG.R_NEAR + (CFG.R_FAR - CFG.R_NEAR) * (i / (n - 1))
+        : (CFG.R_NEAR + CFG.R_FAR) / 2;
     });
-    var sum = blocks.reduce(function (a2, b2) { return a2 + b2.weight; }, 0) || 1;
-    var acc = 0;
-    blocks.forEach(function (b) {
-      b.span = b.weight / sum * TAU;
-      b.a0 = acc; b.a1 = acc + b.span;
-      b.center = TOP + acc + b.span / 2;
-      if (b.clan) { b.clan.a0 = b.a0; b.clan.a1 = b.a1; b.clan.angle = b.center; }
-      acc += b.span;
-    });
+    if (undated) byMonth[""] = CFG.R_FAR;
+    players.forEach(function (p) { p.recR = byMonth[monthKey(p.lastDate)]; });
   })();
 
-  // Ay bantları: en yeni içte. Bir bantta bir bloğun üyeleri kendi dilimine
-  // sığmıyorsa bant yeni bir sıra açar (satır kaydırma gibi), böylece
-  // kalabalık aylar tek çembere tıkışmaz.
-  (function () {
-    var r = CFG.R_NEAR;
-    monthKeys.forEach(function (mk, mi) {
-      var members = {};   // blok -> o aydaki üyeler
-      var any = false, maxR = 0;
-      blocks.forEach(function (b, bi) {
-        var mem = b.list.filter(function (p) { return monthOf[p.id] === mk; });
-        members[bi] = mem;
-        if (mem.length) any = true;
-        mem.forEach(function (p) { if (p.r > maxR) maxR = p.r; });
-      });
-      if (!any) { bands[mk] = { r0: r, rows: 0, thick: 0 }; return; }
-
-      var rowGap = 2 * maxR + CFG.BUBBLE_PAD;
-
-      // Kaç sıra? Dilimine sığmayan blok kadar.
-      var rows = 1;
-      blocks.forEach(function (b, bi) {
-        var mem = members[bi];
-        if (!mem.length) return;
-        var need = mem.reduce(function (a2, p) { return a2 + width(p); }, 0);
-        var perRow = Math.max(1, b.span * (r + rowGap / 2));
-        rows = Math.max(rows, Math.min(mem.length, Math.ceil(need / perRow)));
-      });
-
-      // Yerleştir: her blok kendi diliminde, üyeleri sıralara eşit bölerek.
-      blocks.forEach(function (b, bi) {
-        var mem = members[bi];
-        if (!mem.length) return;
-        var per = Math.ceil(mem.length / rows);
-        for (var k = 0; k < rows; k++) {
-          var chunk = mem.slice(k * per, (k + 1) * per);
-          if (!chunk.length) continue;
-          var rr = r + k * rowGap + rowGap / 2;
-          var W = chunk.reduce(function (a2, p) { return a2 + width(p); }, 0) || 1;
-          // Dilimi tam doldur: yarım kalan sıra ve dikiş izi olmasın.
-          var use = b.span * 0.98;
-          var start = b.center - use / 2, acc2 = 0;
-          chunk.forEach(function (p) {
-            var w = width(p) / W * use;
-            p.home = rr;
-            p.angle = start + acc2 + w / 2;
-            acc2 += w;
-          });
+  // Ortak oynama bağları.
+  var coLinks = (function () {
+    var w = {}, out = [];
+    Object.keys(videoRoster).forEach(function (v) {
+      var list = videoRoster[v];
+      for (var i = 0; i < list.length; i++) {
+        for (var j = i + 1; j < list.length; j++) {
+          var a = list[i].id, b = list[j].id;
+          var k = a < b ? a + "\u0000" + b : b + "\u0000" + a;
+          w[k] = (w[k] || 0) + 1;
         }
-      });
-
-      bands[mk] = { r0: r, rows: rows, thick: rows * rowGap };
-
-      var next = monthKeys[mi + 1];
-      var gapMonths = (mk && next) ? monthsBetween(mk, next) : 1;
-      r += bands[mk].thick + CFG.MONTH_GAP * Math.min(gapMonths, CFG.MONTH_GAP_MAX);
+      }
     });
+    Object.keys(w).forEach(function (k) {
+      var ab = k.split("\u0000");
+      out.push({ source: playerById[ab[0]], target: playerById[ab[1]], w: w[k] });
+    });
+    return out;
   })();
 
-  // düğüm görselleri (açı yukarıda hesaplandı)
+  // Başlangıç konumları (altın açı sarmalı) — her açılışta aynı sonuç.
+  players.forEach(function (p, i) {
+    var ang = i * 2.399963229728653;
+    p.x = Math.cos(ang) * p.recR;
+    p.y = Math.sin(ang) * p.recR;
+  });
+
+  // düğüm görselleri
   players.forEach(function (p) {
     var c = clanByTag[p.clan];
-    p.r = rScale(p.count);
-    p.color = c.color;
-    p.clanName = c.name;
+    p.color = p.team ? p.team.color : c.color;
+    p.clanName = p.team ? p.team.name : c.name;
     p.isPublic = p.clan === CFG.NO_CLAN.tag;
-    p.tx = Math.cos(p.angle) * p.home;
-    p.ty = Math.sin(p.angle) * p.home;
-    p.x = p.tx; p.y = p.ty;
-    p.search = [norm(p.name), norm(c.name), norm(c.tag)]
+    p.search = [norm(p.name), norm(c.name), norm(c.tag), norm(p.team ? p.team.name : "")]
       .concat(p.aliases.map(norm))
       .concat(p.formerClans.map(function (t) {
         var fc = clanByTag[t];
@@ -380,7 +320,6 @@
   });
 
   var nodes = [center].concat(players);
-  var links = players.map(function (p) { return { source: center, target: p }; });
 
   // ------------------------------------------------------------------ durum
   var state = { hidden: {}, query: "", selected: null, allLabels: false, hover: null };
@@ -403,28 +342,42 @@
   var gNodes = root.append("g").attr("class", "nodes");
 
   // merkezden dışa doğru yoğunluk halkaları
-  // Her ay bandının iç sınırına bir çizgi.
-  var ringDates = monthKeys.slice();
-  function ringLabel(d) {
-    if (!d) return "tarihsiz";
-    var q = String(d).split("-");
-    var aylar = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
-    return (aylar[(+q[1]) - 1] || "") + " " + q[0];
+  // 15 binden fazla çizgiyi tek tek DOM'a koymak ağır olurdu; aynı renkteki
+  // bağlar tek bir <path> içinde birleştiriliyor. Hafif kavisli çizilince
+  // referanstaki lif görünümü çıkıyor.
+  function edgePath(list) {
+    var d = [];
+    for (var i = 0; i < list.length; i++) {
+      var l = list[i];
+      var x1 = l.source.x, y1 = l.source.y, x2 = l.target.x, y2 = l.target.y;
+      var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      d.push("M", x1.toFixed(1), " ", y1.toFixed(1),
+             "Q", (mx * 0.82).toFixed(1), " ", (my * 0.82).toFixed(1), " ",
+             x2.toFixed(1), " ", y2.toFixed(1));
+    }
+    return d.join("");
   }
-  gRings.selectAll("circle").data(ringDates).join("circle")
-    .attr("r", function (d) { return bands[d].r0 - CFG.BUBBLE_PAD; })
-    .attr("fill", "none")
-    .attr("stroke", "#ffffff")
-    .attr("stroke-opacity", 0.045)
-    .attr("stroke-dasharray", "2 6");
-  gRings.selectAll("text").data(ringDates).join("text")
-    .attr("x", 0).attr("y", function (d) { return -(bands[d].r0 - CFG.BUBBLE_PAD) - 5; })
-    .attr("text-anchor", "middle")
-    .attr("fill", "#ffffff").attr("fill-opacity", 0.22)
-    .attr("font-size", 9).attr("letter-spacing", 0.5)
-    .text(ringLabel);
+  var linkGroups = (function () {
+    var by = {};
+    coLinks.forEach(function (l) {
+      var c = l.source.r >= l.target.r ? l.source.color : l.target.color;
+      (by[c] = by[c] || []).push(l);
+    });
+    return Object.keys(by).map(function (c) { return { color: c, list: by[c] }; });
+  })();
 
-  var link = gLinks.selectAll("line").data(links).join("line").attr("class", "link");
+  var link = gLinks.selectAll("path").data(linkGroups).join("path")
+    .attr("class", "link")
+    .attr("fill", "none")
+    .attr("stroke", function (g) { return g.color; })
+    .attr("stroke-opacity", CFG.LINK_ALPHA)
+    .attr("stroke-width", 0.8);
+
+  // Seçili oyuncunun bağlarını öne çıkarmak için ayrı bir katman.
+  var gHi = root.insert("g", ".nodes").attr("class", "hilinks");
+  var hiPath = gHi.append("path")
+    .attr("fill", "none").attr("stroke-width", 1.1).attr("stroke-opacity", 0.55)
+    .attr("d", "");
 
   var node = gNodes.selectAll("g.node").data(nodes, function (d) { return d.id; }).join("g")
     .attr("class", function (d) { return "node" + (d.isCenter ? " center" : ""); });
@@ -443,7 +396,7 @@
     .attr("r", function (d) { return d.r; })
     .attr("fill", function (d) { return d.color; })
     .attr("fill-opacity", function (d) { return d.isCenter ? 1 : 0.85; })
-    .attr("stroke", function (d) { return d.isCenter ? "#fff" : "rgba(0,0,0,.45)"; })
+    .attr("stroke", function (d) { return d.isCenter ? "#fff" : "rgba(8,10,18,.55)"; })
     .attr("stroke-width", function (d) { return d.isCenter ? 3 : 1.5; })
     .attr("filter", function (d) { return d.isCenter ? "url(#glow)" : null; });
 
@@ -453,85 +406,32 @@
     .attr("y", function (d) { return d.r + 13; })
     .text(function (d) { return d.name; });
 
-  // ------------------------------------------------------------- simülasyon
-  function homingForce(alpha) {
-    var k = 0.075 * alpha;
-    for (var i = 0; i < players.length; i++) {
-      var p = players[i];
-      p.vx += (p.tx - p.x) * k;
-      p.vy += (p.ty - p.y) * k;
-    }
-  }
-
-  var ALPHA_DECAY = 0.022;
-  var SETTLE_TICKS = Math.ceil(Math.log(0.001) / Math.log(1 - ALPHA_DECAY));
-
-  // Simülasyon ekranda dönmez: yerleşim bir kerede hesaplanır, sonra dondurulur.
-  var sim = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(function (d) { return d.id; })
-      .distance(function (d) { return d.target.home; }).strength(0.05))
-    .force("charge", d3.forceManyBody().strength(function (d) { return d.isCenter ? -900 : -55; }))
-    .force("collide", d3.forceCollide(function (d) { return d.r + (d.isCenter ? 16 : 4); }).strength(1).iterations(2))
-    .force("home", homingForce)
-    .alphaDecay(ALPHA_DECAY)
-    .stop();
-
-  // Bir düğümü, açısını koruyarak tam olarak kendi yarıçapına oturtur.
-  // Merkeze uzaklık = "kaç video + ne kadar yakın tarihte" sıralamasıdır;
-  // bu yüzden yarıçap pazarlık konusu değil, çarpışma sadece açıyı değiştirebilir.
-  function project(p) {
-    var a = Math.atan2(p.y, p.x);
-    if (!isFinite(a)) a = p.angle;
-    p.x = Math.cos(a) * p.home;
-    p.y = Math.sin(a) * p.home;
-  }
-
-  // Üst üste binen baloncukları yalnızca açısal olarak ayırır.
-  function spreadAngular(iters) {
-    for (var it = 0; it < iters; it++) {
-      var moved = false;
-      for (var i = 0; i < players.length; i++) {
-        var a = players[i];
-        for (var j = i + 1; j < players.length; j++) {
-          var b = players[j];
-          var dx = b.x - a.x, dy = b.y - a.y;
-          var d = Math.sqrt(dx * dx + dy * dy);
-          var min = a.r + b.r + 3;
-          if (d >= min) continue;
-          if (d < 0.01) { dx = Math.cos(a.angle) * 0.01; dy = Math.sin(a.angle) * 0.01; d = 0.01; }
-          var push = ((min - d) / d) * 0.5;
-          a.x -= dx * push; a.y -= dy * push;
-          b.x += dx * push; b.y += dy * push;
-          moved = true;
-        }
-      }
-      for (var k = 0; k < players.length; k++) project(players[k]);
-      if (!moved) break;
-    }
-  }
-
-  // Yerleşimi bir kere hesapla ve her baloncuğu yerine çivile.
-  // Bu fonksiyon sayfa ömrü boyunca yalnızca bir kez çalışır.
+  // Kuvvet simülasyonu bir kez çalışır, sonra herkes yerine çivilenir.
   function layout() {
-    players.forEach(function (p) {
-      p.x = p.tx; p.y = p.ty; p.vx = 0; p.vy = 0; p.fx = null; p.fy = null;
-    });
     center.x = 0; center.y = 0; center.fx = 0; center.fy = 0;
-    // Konumlar yukarıda tam olarak hesaplandı (ay bandı + blok dilimi + sıra).
-    // Kuvvet simülasyonuna gerek yok; sadece kalan bir çakışma varsa açıdan
-    // ayırıyoruz ve herkesi tam yarıçapına oturtuyoruz.
-    players.forEach(project);
-    spreadAngular(24);
-    nodes.forEach(function (n) { n.fx = n.x; n.fy = n.y; });  // artık kıpırdamazlar
+    players.forEach(function (p) { p.fx = null; p.fy = null; });
+
+    var sim = d3.forceSimulation(players)
+      .force("link", d3.forceLink(coLinks)
+        .id(function (d) { return d.id; })
+        .distance(function (l) { return Math.max(18, 90 / l.w); }))
+      .force("charge", d3.forceManyBody().strength(CFG.CHARGE).distanceMax(900))
+      .force("collide", d3.forceCollide(function (d) { return d.r + CFG.BUBBLE_PAD; }).iterations(2))
+      .force("recency", d3.forceRadial(function (d) { return d.recR; }, 0, 0)
+        .strength(CFG.RECENCY_PULL))
+      .alphaDecay(0.025)
+      .stop();
+
+    var ticks = Math.ceil(Math.log(0.001) / Math.log(1 - 0.025));
+    for (var i = 0; i < ticks; i++) sim.tick();
+    sim.stop();
+
+    nodes.forEach(function (n) { n.fx = n.x; n.fy = n.y; });   // artık kıpırdamazlar
     draw();
   }
 
   function draw() {
-    link
-      .attr("x1", function (d) { return d.source.x; })
-      .attr("y1", function (d) { return d.source.y; })
-      .attr("x2", function (d) { return d.target.x; })
-      .attr("y2", function (d) { return d.target.y; });
+    link.attr("d", function (g) { return edgePath(g.list); });
     node.attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; });
   }
 
@@ -548,10 +448,7 @@
     W = stage.clientWidth; H = stage.clientHeight;
     svg.attr("viewBox", [-W / 2, -H / 2, W, H].join(" "));
   }
-  function outerRadius() {
-    var last = monthKeys[monthKeys.length - 1];
-    return last ? bands[last].r0 + bands[last].thick + 20 : CFG.R_NEAR;
-  }
+  function outerRadius() { return CFG.R_FAR + 60; }
   function extentRadius() {
     var m = 0;
     for (var i = 0; i < nodes.length; i++) {
@@ -579,7 +476,11 @@
 
   // Baloncuklar sürüklenemez: konumları kalıcı olarak sabit.
 
-  function isVisible(d) { return d.isCenter || !state.hidden[d.clan]; }
+  function isVisible(d) {
+    if (d.isCenter) return true;
+    if (d.teamTag) return !state.hidden[d.teamTag];
+    return !state.hidden[d.clan];
+  }
   function matches(d) {
     if (!state.query) return true;
     if (d.isCenter) return true;
@@ -663,14 +564,18 @@
         if (state.query) return false;   // arama varken seçim soldurmasın
         return !!(state.selected && state.selected !== d.id && !isNeighbourOfSelected(d));
       });
-    link
-      .style("display", function (d) { return isVisible(d.target) ? null : "none"; })
-      .attr("stroke-opacity", function (d) {
-        if (state.selected === d.target.id) return .55;
-        if (!matches(d.target)) return .03;
-        return .10;
-      })
-      .attr("stroke", function (d) { return state.selected === d.target.id ? d.target.color : "#fff"; });
+    // Bağ katmanı: tek tek değil topluca sönümlenir (15 binden fazla bağ var).
+    var dim = !!(state.query || state.selected);
+    gLinks.attr("opacity", dim ? 0.28 : 1);
+
+    // Seçili oyuncunun bağları öne çıkar.
+    if (state.selected && playerById[state.selected]) {
+      var sel = playerById[state.selected];
+      var mine = coLinks.filter(function (l) { return l.source === sel || l.target === sel; });
+      hiPath.attr("stroke", sel.color).attr("d", edgePath(mine));
+    } else {
+      hiPath.attr("d", "");
+    }
     applyLabelRule();
     renderLegend();
   }
@@ -678,8 +583,9 @@
   function isNeighbourOfSelected(d) {
     var sel = nodes.find(function (n) { return n.id === state.selected; });
     if (!sel || sel.isCenter) return true;
+    if (sel.teamTag) return d.teamTag === sel.teamTag;
     if (sel.isPublic) return false;   // Public bir klan değil, hepsini vurgulama
-    return d.clan === sel.clan;
+    return !d.teamTag && d.clan === sel.clan;
   }
 
   // --------------------------------------------------------------- etkileşim
@@ -773,7 +679,9 @@
   function playerPanel(d) {
     var vids = d.videos.map(function (id) { return videoById[id]; })
       .sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
-    var mates = players.filter(function (p) { return p.clan === d.clan && p.id !== d.id; })
+    var mates = players.filter(function (p) {
+      return (d.teamTag ? p.teamTag === d.teamTag : (!p.teamTag && p.clan === d.clan)) && p.id !== d.id;
+    })
       .sort(function (a, b) { return b.count - a.count; });
     var share = Math.round(d.count / ((DATA.videos || []).length || 1) * 100);
 
@@ -790,8 +698,9 @@
     h += "<div class='p-stats'>" +
       "<div class='p-stat'><b>" + d.count + "</b><span>Video</span></div>" +
       "<div class='p-stat'><b>%" + share + "</b><span>Videolarımın</span></div>" +
-      "<div class='p-stat'><b>" + (d.isPublic ? d.count : mates.length + 1) + "</b><span>" +
-        (d.isPublic ? "Video" : "Klan üyesi") + "</span></div>" +
+      "<div class='p-stat'><b>" + ((d.isPublic && !d.teamTag) ? d.count : mates.length + 1) +
+        "</b><span>" + ((d.isPublic && !d.teamTag) ? "Video" : (d.teamTag ? "Takım üyesi" : "Klan üyesi")) +
+        "</span></div>" +
       "</div>";
 
     if (d.aliases.length) {
@@ -833,8 +742,9 @@
         }).join("") + "</div>";
     }
 
-    if (mates.length && !d.isPublic) {
-      h += "<div class='p-sec'>Aynı klandan</div><div class='chips'>" +
+    if (mates.length && (!d.isPublic || d.teamTag)) {
+      h += "<div class='p-sec'>" + (d.teamTag ? "Aynı takımdan" : "Aynı klandan") +
+        "</div><div class='chips'>" +
         mates.map(function (m) {
           return "<span class='chip' data-go='" + m.id + "'>" + esc(m.name) + " <span style='opacity:.55'>" + m.count + "</span></span>";
         }).join("") + "</div>";
@@ -934,7 +844,8 @@
     "<span><b>" + players.length + "</b> oyuncu</span>" +
     "<span><b>" + (DATA.videos || []).length + "</b> video</span>" +
     "<span><b>" + clanList.length + "</b> klan</span>" +
-    (hasPublic ? "<span><b>" + publicClan.count + "</b> public</span>" : "") +
+    (teams.length ? "<span><b>" + teams.length + "</b> takım</span>" : "") +
+    (publicClan.count > 0 ? "<span><b>" + publicClan.count + "</b> public</span>" : "") +
     "<span><b>" + players.reduce(function (a, p) { return a + p.count; }, 0) + "</b> katılım</span>";
 
   var sub = document.getElementById("brand-sub");

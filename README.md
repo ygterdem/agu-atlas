@@ -1,57 +1,19 @@
 # Aghustos'un Youtube Atlas'ı 🛰️
 
 Videolarımda birlikte oynadığım oyuncuların bağlantı haritası.
-Ortada ben varım; herkes bana bağlı. İki ayrı şey iki ayrı bilgi taşır:
+Ortada ben varım, ama çizgiler bana değil **oyuncular arasında**: aynı videoda
+oynayan herkes birbirine bağlanır, bağın gücü kaç ayrı videoda birlikte
+oynadıklarıdır. Yerleşimi bu bağlar belirler, dolayısıyla hep beraber oynayan
+insanlar haritada kendiliğinden bir **küme** oluşturur.
 
-- **Baloncuk boyutu = kaç videoda çıktığı.** Çok videoda oynayan büyük olur.
-- **Merkeze yakınlık = en son ne zaman birlikte oynadığımız.** En son
-  oynadıklarım merkezde, uzun zamandır oynamadıklarım dışarıda kalır.
-
-Yani tek videoda çıkmış ama dün oynamış biri merkeze yakın küçük bir
-baloncuk; 20 videoda çıkmış ama iki yıldır oynamamış biri dışarıda büyük bir
-baloncuk olur.
-
-Halkalar **ay**dır: aynı halkadakilerle son kez aynı ay içinde oynanmıştır.
-Aylar arası boşluk **gerçek takvim farkını** yansıtır — 2022 ile 2024
-arasında iki yıl varsa aralarındaki boşluk da o kadar açıktır, sırada komşu
-olsalar bile.
-
-Bir ay çok kalabalıksa (mesela 179 kişinin son videosu aynı aya denk
-geliyorsa) o ay tek çembere tıkışmaz: **iç içe birkaç sıraya** açılır.
-Her sıra tam bir çemberdir, baloncuklar üst üste binmez.
-
-Klanlar ve birlikte oynayan public grupları çemberde **sabit birer dilim**
-tutar; dilim genişliği o grubun en kalabalık ayına göre ayarlanır. Böylece
-bir grup hangi ayda olursa olsun hep aynı yönde kalır.
-
-Aynı klandakiler aynı renkte ve bir arada kümelenir; klanlar çemberde
-büyükten küçüğe yan yana dizilir.
-
-**Public** bir klan değildir. Klanı olmayan oyuncular tek bir yığın
-oluşturmaz; klanların **arasındaki boşluklara** dağıtılırlar.
-Böylece klan renkleri blok blok okunur, public'ler de arada kalan yeri
-doldurur. Alt bardaki “klan” sayacı public'i saymaz.
-
-Public'ler rastgele de serpiştirilmez: **birbiriyle sık oynayanlar bir arada
-tutulur.** En az **2 ayrı videoda** birlikte oynayan iki public aynı gruba
-girer ve bu geçişlidir (A-B ile B-C bağlıysa üçü tek grup olur). Her grup
-bölünmeden tek bir boşluğa yerleşir, yani klanı olmayan ama hep beraber
-oynayan takımlar haritada kendiliğinden bir küme oluşturur. Eşiği
-`assets/atlas.js` içindeki `PUBLIC_GROUP_MIN` ile değiştirebilirsin.
-
-Detay panelinde herkes için **“En çok birlikte oynadıkları”** listesi var;
-kimin kiminle kaç videoda oynadığını oradan görebilir, tıklayıp o kişiye
-geçebilirsin.
-
-Uzaklık sıralaması `videos` listesindeki `date` alanlarından gelir: bir
-oyuncunun **en son** çıktığı videonun tarihi neyse halkası odur. Hiç tarihi
-olmayanlar en dışta, "tarihsiz" halkasında toplanır — bu yüzden videolara
-tarih girmek önemli.
-
-Yerleşim sayfa açılırken bir kere hesaplanır ve **sabitlenir** — baloncuklar
-hiçbir şekilde kıpırdamaz, sürüklenemez ve her açılışta tam olarak aynı
-yerde durur. Fare tekerleğiyle yakınlaşıp haritada gezebilirsin; bu sadece
-kamerayı oynatır, baloncukların birbirine göre yeri hiç değişmez.
+- **Baloncuk boyutu** = kaç videoda çıktığı.
+- **Merkeze yakınlık** = en son ne zaman birlikte oynandığı. Bu artık kesin
+  bir halka değil, bir eğilim: kümelenme onu bir miktar esnetir. Ne kadar
+  baskın olacağını `assets/atlas.js` içindeki `RECENCY_PULL` belirler
+  (`0` = sadece kümeler, `1` = sıkı halkalar).
+- **Renk** = klan. Klanı olmayıp birbiriyle sürekli oynayanlar **takım**
+  olarak algılanır (en az `TEAM_MIN` kişi) ve kendi renklerini alır;
+  geri kalan klansızlar gri "Public" olarak kalır.
 
 [twitchatlas.com](https://twitchatlas.com) tarzı, ama tamamen elle seçilmiş veriyle.
 
