@@ -1,10 +1,19 @@
 # Aghustos'un Youtube Atlas'ı 🛰️
 
 Videolarımda birlikte oynadığım oyuncuların bağlantı haritası.
-Ortada ben varım; herkes bana bağlı. Bir oyuncu ne kadar çok videoda çıktıysa
-baloncuğu o kadar **büyük** ve merkeze o kadar **yakın**. Aynı klandakiler
-aynı renkte ve bir arada kümelenir; klanlar çemberde büyükten küçüğe
-yan yana dizilir.
+Ortada ben varım; herkes bana bağlı. İki ayrı şey iki ayrı bilgi taşır:
+
+- **Baloncuk boyutu = kaç videoda çıktığı.** Çok videoda oynayan büyük olur.
+- **Merkeze yakınlık = en son ne zaman birlikte oynadığımız.** En son
+  oynadıklarım merkezde, uzun zamandır oynamadıklarım dışarıda kalır.
+
+Yani tek videoda çıkmış ama dün oynamış biri merkeze yakın küçük bir
+baloncuk; 20 videoda çıkmış ama iki yıldır oynamamış biri dışarıda büyük bir
+baloncuk olur. Halkalar tarihtir: aynı halkadakilerle son kez aynı gün
+oynanmıştır.
+
+Aynı klandakiler aynı renkte ve bir arada kümelenir; klanlar çemberde
+büyükten küçüğe yan yana dizilir.
 
 **Public** bir klan değildir. Klanı olmayan oyuncular tek bir yığın
 oluşturmaz; klanların **arasındaki boşluklara** dağıtılırlar.
@@ -22,15 +31,10 @@ Detay panelinde herkes için **“En çok birlikte oynadıkları”** listesi va
 kimin kiminle kaç videoda oynadığını oradan görebilir, tıklayıp o kişiye
 geçebilirsin.
 
-Merkeze uzaklık iki kademeli:
-
-1. **Video sayısı** — çok videoda çıkan içeride.
-2. **Tarih** — video sayısı eşit olanlar arasında, en son birlikte oynadığım
-   kişi daha içeride durur; eski dostlar dışarıda kalır.
-
-İkinci kural birinciyi asla bozmaz: 3 videolu biri, 4 videolu birinden daha
-içeride olamaz. Tarih sıralaması `videos` listesindeki `date` alanlarından
-gelir; tarihi olmayan videolar en eski sayılır.
+Uzaklık sıralaması `videos` listesindeki `date` alanlarından gelir: bir
+oyuncunun **en son** çıktığı videonun tarihi neyse halkası odur. Hiç tarihi
+olmayanlar en dışta, "tarihsiz" halkasında toplanır — bu yüzden videolara
+tarih girmek önemli.
 
 Yerleşim sayfa açılırken bir kere hesaplanır ve **sabitlenir** — baloncuklar
 hiçbir şekilde kıpırdamaz, sürüklenemez ve her açılışta tam olarak aynı
@@ -191,8 +195,8 @@ Tek dış bağımlılık: [D3.js](https://d3js.org) (CDN üzerinden). Derleme ad
 
 | Ayar | Ne işe yarar |
 |---|---|
-| `R_FAR` / `R_NEAR` | En uzak / en yakın halkanın merkeze mesafesi |
-| `R_MIN` / `R_MAX` | En küçük / en büyük baloncuk boyutu |
+| `R_FAR` / `R_NEAR` | En eski / en yeni tarih halkasının merkeze mesafesi |
+| `R_MIN` / `R_MAX` | En az / en çok videosu olanın baloncuk boyutu |
 | `R_CENTER` | Ortadaki (senin) baloncuğun boyutu |
 | `LABEL_MIN_R` | Bu boyutun altındaki isimler sadece üzerine gelince görünür |
 | `PALETTE` | Rengi belirtilmemiş klanlara atanacak renkler |

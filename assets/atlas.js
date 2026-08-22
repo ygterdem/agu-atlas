@@ -8,10 +8,10 @@
 
   // ----------------------------------------------------------------- ayarlar
   var CFG = {
-    R_FAR: 430,        // 1 videoda görünenlerin merkeze uzaklığı
-    R_NEAR: 155,       // en çok videoda görünenlerin merkeze uzaklığı
-    R_MIN: 9,          // en küçük baloncuk yarıçapı
-    R_MAX: 30,         // en büyük baloncuk yarıçapı
+    R_FAR: 430,        // en eskiden beri oynamadıklarımın merkeze uzaklığı
+    R_NEAR: 155,       // en son birlikte oynadıklarımın merkeze uzaklığı
+    R_MIN: 9,          // en az videoda çıkanın baloncuk yarıçapı
+    R_MAX: 30,         // en çok videoda çıkanın baloncuk yarıçapı
     R_CENTER: 46,      // merkez baloncuk yarıçapı
     LABEL_MIN_R: 13,   // bu yarıçapın altındakilerin ismi normalde gizli
     PUBLIC_GROUP_MIN: 2, // kaç ayrı videoda birlikte oynayanlar aynı grup sayılsın
@@ -119,9 +119,20 @@
   var maxCount = d3.max(players, function (d) { return d.count; }) || 1;
   var rScale = d3.scaleSqrt().domain([1, Math.max(2, maxCount)]).range([CFG.R_MIN, CFG.R_MAX]).clamp(true);
 
-  function radiusFor(count) {
-    var t = maxCount > 1 ? (count - 1) / (maxCount - 1) : 1;
-    return CFG.R_FAR - (CFG.R_FAR - CFG.R_NEAR) * Math.sqrt(t);
+  // Merkeze uzaklık = en son ne zaman birlikte oynadığımız.
+  // Aynı tarihte son kez görünenler aynı halkada durur; en yeni tarih en içte.
+  // (Baloncuğun BOYUTU ise video sayısından gelir; ikisi ayrı iş yapar.)
+  var dateRings = [], homeByDate = {};
+  function buildRings() {
+    var seen = {};
+    players.forEach(function (p) { seen[p.lastDate] = 1; });
+    dateRings = Object.keys(seen).sort().reverse();   // en yeni önce, tarihsizler en sonda
+    var n = dateRings.length;
+    dateRings.forEach(function (d, i) {
+      homeByDate[d] = n > 1
+        ? CFG.R_NEAR + (CFG.R_FAR - CFG.R_NEAR) * (i / (n - 1))
+        : (CFG.R_NEAR + CFG.R_FAR) / 2;
+    });
   }
 
   // Her oyuncunun birlikte oynadığımız ilk/son video tarihi.
@@ -131,8 +142,11 @@
       .filter(Boolean).sort();
     p.lastDate = ds.length ? ds[ds.length - 1] : "";
     p.firstDate = ds.length ? ds[0] : "";
-    p.r = rScale(p.count);
+    p.r = rScale(p.count);          // BOYUT: kaç videoda oynadığı
   });
+
+  buildRings();
+  players.forEach(function (p) { p.home = homeByDate[p.lastDate]; });  // UZAKLIK: son oynama
 
   // Klan geçmişi: her video için o dönemki klan (clanAt) yoksa mevcut klan.
   // Ardışık aynı klanlar tek bir döneme birleştirilir.
@@ -160,38 +174,7 @@
     });
   });
 
-  // Aynı video sayısına sahip oyuncular arasında sıralamayı tarih belirler:
-  // en son birlikte oynadığım merkeze daha yakın durur. Kaydırma, bir üst
-  // basamağa kadar olan boşluğun bir kısmıyla sınırlı — yani 3 videolu biri
-  // hiçbir zaman 4 videolu birinden içeride kalmaz.
-  var TIE_SHARE = 0.45;
-  (function () {
-    var groups = {};
-    players.forEach(function (p) {
-      (groups[p.count] = groups[p.count] || []).push(p);
-    });
-    Object.keys(groups).forEach(function (key) {
-      var g = groups[key], c = +key;
-      g.sort(function (a, b) {
-        return String(b.lastDate).localeCompare(String(a.lastDate)) ||
-               String(b.firstDate).localeCompare(String(a.firstDate)) ||
-               a.name.localeCompare(b.name, "tr");
-      });
-      var base = radiusFor(c);
-      var share = Math.max(0, base - radiusFor(c + 1)) * TIE_SHARE;
-      g.forEach(function (p, i) {
-        p.recencyRank = i;                                  // 0 = en yeni
-        var f = g.length > 1 ? 1 - i / (g.length - 1) : 0;  // 1 = en yeni, 0 = en eski
-        p.home = base - share * f;
-      });
-    });
-  })();
-
-  // Açı dağılımı:
-  //  - Klanlar birbirine bitişik bloklar hâlinde yerleşir (üye sayısıyla
-  //    orantılı yay payı alır).
-  //  - Public oyuncular tek bir blok oluşturmaz; klanların ARASINDAKİ
-  //    boşluklara eşit olarak dağıtılır.
+  // ---- açı dağılımı için ortak hazırlık ----
   var TAU = Math.PI * 2, TOP = -Math.PI / 2;
   var total = players.length || 1;
   var publics = players.filter(function (p) { return p.clan === CFG.NO_CLAN.tag; });
@@ -359,29 +342,30 @@
   var gNodes = root.append("g").attr("class", "nodes");
 
   // merkezden dışa doğru yoğunluk halkaları
-  var ringCounts = (function () {
-    var all = Array.from(new Set(players.map(function (p) { return p.count; })))
-      .sort(function (a, b) { return radiusFor(a) - radiusFor(b); });
+  // Halkalar artık tarih halkası: birbirine çok yakın olanlar etiketlenmez.
+  var ringDates = (function () {
+    var all = dateRings.slice().sort(function (a, b) { return homeByDate[a] - homeByDate[b]; });
     var keep = [], last = -1e9;
-    all.forEach(function (c) {
-      var r = radiusFor(c);
-      if (r - last >= 48) { keep.push(c); last = r; }
+    all.forEach(function (d) {
+      var r = homeByDate[d];
+      if (r - last >= 46) { keep.push(d); last = r; }
     });
     if (all.length && keep.indexOf(all[all.length - 1]) === -1) keep.push(all[all.length - 1]);
     return keep;
   })();
-  gRings.selectAll("circle").data(ringCounts).join("circle")
-    .attr("r", function (c) { return radiusFor(c); })
+  function ringLabel(d) { return d ? fmtDate(d) : "tarihsiz"; }
+  gRings.selectAll("circle").data(ringDates).join("circle")
+    .attr("r", function (d) { return homeByDate[d]; })
     .attr("fill", "none")
     .attr("stroke", "#ffffff")
     .attr("stroke-opacity", 0.045)
     .attr("stroke-dasharray", "2 6");
-  gRings.selectAll("text").data(ringCounts).join("text")
-    .attr("x", 0).attr("y", function (c) { return -radiusFor(c) - 6; })
+  gRings.selectAll("text").data(ringDates).join("text")
+    .attr("x", 0).attr("y", function (d) { return -homeByDate[d] - 6; })
     .attr("text-anchor", "middle")
     .attr("fill", "#ffffff").attr("fill-opacity", 0.22)
     .attr("font-size", 9).attr("letter-spacing", 0.5)
-    .text(function (c) { return c + " video"; });
+    .text(ringLabel);
 
   var link = gLinks.selectAll("line").data(links).join("line").attr("class", "link");
 
