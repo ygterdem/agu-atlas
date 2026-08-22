@@ -216,26 +216,39 @@
     }
   }
 
+  var ALPHA_DECAY = 0.022;
+  var SETTLE_TICKS = Math.ceil(Math.log(0.001) / Math.log(1 - ALPHA_DECAY));
+
+  // Simülasyon ekranda dönmez: yerleşim bir kerede hesaplanır, sonra dondurulur.
   var sim = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id(function (d) { return d.id; })
       .distance(function (d) { return d.target.home; }).strength(0.05))
     .force("charge", d3.forceManyBody().strength(function (d) { return d.isCenter ? -900 : -55; }))
     .force("collide", d3.forceCollide(function (d) { return d.r + (d.isCenter ? 16 : 4); }).strength(1).iterations(2))
     .force("home", homingForce)
-    .alpha(1).alphaDecay(0.022)
-    .on("tick", tick)
-    .on("end", function () { if (!userMoved) fit(true, true); });
+    .alphaDecay(ALPHA_DECAY)
+    .stop();
 
-  var tickN = 0;
-  function tick() {
+  // Yerleşimi hesapla ve her baloncuğu yerine çivile.
+  function layout() {
+    players.forEach(function (p) {
+      p.x = p.tx; p.y = p.ty; p.vx = 0; p.vy = 0; p.fx = null; p.fy = null;
+    });
+    center.x = 0; center.y = 0; center.fx = 0; center.fy = 0;
+    sim.alpha(1);
+    for (var i = 0; i < SETTLE_TICKS; i++) sim.tick();
+    sim.stop();
+    nodes.forEach(function (n) { n.fx = n.x; n.fy = n.y; });  // artık kıpırdamazlar
+    draw();
+  }
+
+  function draw() {
     link
       .attr("x1", function (d) { return d.source.x; })
       .attr("y1", function (d) { return d.source.y; })
       .attr("x2", function (d) { return d.target.x; })
       .attr("y2", function (d) { return d.target.y; });
     node.attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; });
-    // yerleşim açıldıkça kamerayı otomatik geri çek (kullanıcı dokunmadıysa)
-    if (!userMoved && (++tickN % 12 === 0)) fit(false, true);
   }
 
   // -------------------------------------------------------------- zoom & fit
@@ -275,20 +288,17 @@
   }
   window.addEventListener("resize", function () { resize(); });
   resize();
-  fit(false);
+  layout();
+  fit(false, true);
 
   // ----------------------------------------------------------------- sürükle
   node.call(d3.drag()
-    .on("start", function (ev, d) {
-      if (!ev.active) sim.alphaTarget(0.25).restart();
-      d.fx = d.x; d.fy = d.y; svg.classed("dragging", true);
+    .on("start", function () { svg.classed("dragging", true); })
+    .on("drag", function (ev, d) {
+      d.x = d.fx = ev.x; d.y = d.fy = ev.y;
+      draw();
     })
-    .on("drag", function (ev, d) { d.fx = ev.x; d.fy = ev.y; })
-    .on("end", function (ev, d) {
-      if (!ev.active) sim.alphaTarget(0);
-      svg.classed("dragging", false);
-      if (!d.isCenter) { d.fx = null; d.fy = null; }
-    }));
+    .on("end", function () { svg.classed("dragging", false); }));
 
   function isVisible(d) { return d.isCenter || !state.hidden[d.clan]; }
   function matches(d) {
@@ -494,7 +504,7 @@
   };
   document.getElementById("btn-reset").onclick = function () {
     state.hidden = {}; state.query = ""; search.value = "";
-    select(null); userMoved = false; fit(true, true); sim.alpha(0.4).restart();
+    select(null); userMoved = false; layout(); fit(true, true);
   };
   var help = document.getElementById("help");
   document.getElementById("btn-help").onclick = function () { help.hidden = false; };
@@ -504,7 +514,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "/" && document.activeElement !== search) { e.preventDefault(); search.focus(); }
     else if (e.key === "Escape") { help.hidden = true; select(null); search.blur(); }
-    else if ((e.key === "r" || e.key === "R") && document.activeElement !== search) { userMoved = false; fit(true, true); }
+    else if ((e.key === "r" || e.key === "R") && document.activeElement !== search) { document.getElementById("btn-reset").click(); }
   });
 
   // -------------------------------------------------------------------- alt bar

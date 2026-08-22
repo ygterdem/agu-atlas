@@ -181,6 +181,7 @@ body{
 .modal-card ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.75;color:#cfd6ee}
 .modal-card b{color:#fff}
 .muted{color:var(--ink-dim);font-size:12px;margin:14px 0 0}
+code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 4px;font-family:inherit;font-size:12px}
 kbd{background:rgba(255,255,255,.08);border:1px solid var(--line);border-bottom-width:2px;
   border-radius:5px;padding:1px 5px;font-family:inherit;font-size:11px}
 

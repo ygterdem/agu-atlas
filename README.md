@@ -5,33 +5,35 @@ Ortada ben varım; herkes bana bağlı. Bir oyuncu ne kadar çok videoda çıkt�
 baloncuğu o kadar **büyük** ve merkeze o kadar **yakın**. Aynı klandakiler
 aynı renkte ve bir arada kümelenir.
 
+Yerleşim sayfa açılırken bir kere hesaplanır ve **sabitlenir** — baloncuklar
+kıpırdamaz, her açılışta tam olarak aynı yerde durur.
+
 [twitchatlas.com](https://twitchatlas.com) tarzı, ama tamamen elle seçilmiş veriyle.
 
 ---
 
-## 🚀 GitHub Pages'te yayına alma (tek seferlik)
+## 🌐 Site nerede?
 
-1. GitHub'da yeni bir repo aç (örn. `agu-atlas`), **Public** olsun.
-2. Bu klasördeki dosyaları repoya yükle:
+**Yayında:** https://ygterdem.github.io/agu-atlas/
+**Repo:** https://github.com/ygterdem/agu-atlas
 
-   ```bash
-   git init
-   git add .
-   git commit -m "Youtube Atlas"
-   git branch -M main
-   git remote add origin https://github.com/KULLANICI-ADIN/agu-atlas.git
-   git push -u origin main
-   ```
+GitHub Pages `main` dalının kökünden yayın yapacak şekilde ayarlı. Yani
+değişikliği push ettiğin an site kendini günceller (1-2 dakika sürer).
 
-   (Terminal kullanmak istemiyorsan: repo sayfasında **Add file → Upload files**
-   ile klasördeki her şeyi sürükleyip bırak.)
+```bash
+cd "C:/Users/Cenk_/Desktop/AI Projects/agu-atlas"
+# data/atlas-data.js dosyasını düzenle
+git add -A
+git commit -m "yeni oyuncular"
+git push
+```
 
-3. Repo → **Settings** → **Pages** → *Build and deployment* →
-   **Source: Deploy from a branch**, **Branch: `main` / `(root)`** → **Save**.
-4. 1–2 dakika sonra site şurada yayında olur:
-   `https://KULLANICI-ADIN.github.io/agu-atlas/`
+Yerelde denemek istersen:
 
-> Kendi alan adını bağlamak istersen: Settings → Pages → *Custom domain*.
+```bash
+python -m http.server 8899
+# sonra tarayıcıda: http://127.0.0.1:8899
+```
 
 ---
 
@@ -87,7 +89,8 @@ Video id'sini yanlış yazarsan o video sessizce atlanır; tarayıcı konsolunda
 | Klan filtresi | Sol alttaki klan listesinden bir klana tıkla (gizler/gösterir) |
 | Tüm isimler | `Aa` butonu |
 | Görünümü sıfırla | `⟳` butonu veya `R` tuşu |
-| Yakınlaştır / gez | Fare tekerleği / sürükle. Baloncukları tutup atabilirsin |
+| Yakınlaştır / gez | Fare tekerleği / boşluğu sürükle |
+| Baloncuğu taşı | Tut ve sürükle — bıraktığın yerde kalır, `⟳` eski hâline döndürür |
 
 ---
 
