@@ -93,6 +93,42 @@
     return CFG.R_FAR - (CFG.R_FAR - CFG.R_NEAR) * Math.sqrt(t);
   }
 
+  // Her oyuncunun birlikte oynadığımız ilk/son video tarihi.
+  players.forEach(function (p) {
+    var ds = p.videos
+      .map(function (id) { return (videoById[id] && videoById[id].date) || ""; })
+      .filter(Boolean).sort();
+    p.lastDate = ds.length ? ds[ds.length - 1] : "";
+    p.firstDate = ds.length ? ds[0] : "";
+  });
+
+  // Aynı video sayısına sahip oyuncular arasında sıralamayı tarih belirler:
+  // en son birlikte oynadığım merkeze daha yakın durur. Kaydırma, bir üst
+  // basamağa kadar olan boşluğun bir kısmıyla sınırlı — yani 3 videolu biri
+  // hiçbir zaman 4 videolu birinden içeride kalmaz.
+  var TIE_SHARE = 0.45;
+  (function () {
+    var groups = {};
+    players.forEach(function (p) {
+      (groups[p.count] = groups[p.count] || []).push(p);
+    });
+    Object.keys(groups).forEach(function (key) {
+      var g = groups[key], c = +key;
+      g.sort(function (a, b) {
+        return String(b.lastDate).localeCompare(String(a.lastDate)) ||
+               String(b.firstDate).localeCompare(String(a.firstDate)) ||
+               a.name.localeCompare(b.name, "tr");
+      });
+      var base = radiusFor(c);
+      var share = Math.max(0, base - radiusFor(c + 1)) * TIE_SHARE;
+      g.forEach(function (p, i) {
+        p.recencyRank = i;                                  // 0 = en yeni
+        var f = g.length > 1 ? 1 - i / (g.length - 1) : 0;  // 1 = en yeni, 0 = en eski
+        p.home = base - share * f;
+      });
+    });
+  })();
+
   // klanlara üye sayısıyla orantılı yay payı ver
   var total = players.length || 1, acc = 0;
   clanList.forEach(function (c) {
@@ -124,7 +160,6 @@
     p.color = c.color;
     p.clanName = c.name;
     p.angle = c.angle + frac * span;
-    p.home = radiusFor(p.count);
     p.tx = Math.cos(p.angle) * p.home;
     p.ty = Math.sin(p.angle) * p.home;
     p.x = p.tx; p.y = p.ty;
@@ -205,7 +240,8 @@
 
   node.append("text")
     .attr("text-anchor", "middle")
-    .attr("dy", function (d) { return d.r + 13; })
+    .attr("x", 0)
+    .attr("y", function (d) { return d.r + 13; })
     .text(function (d) { return d.name; });
 
   // ------------------------------------------------------------- simülasyon
@@ -231,6 +267,40 @@
     .alphaDecay(ALPHA_DECAY)
     .stop();
 
+  // Bir düğümü, açısını koruyarak tam olarak kendi yarıçapına oturtur.
+  // Merkeze uzaklık = "kaç video + ne kadar yakın tarihte" sıralamasıdır;
+  // bu yüzden yarıçap pazarlık konusu değil, çarpışma sadece açıyı değiştirebilir.
+  function project(p) {
+    var a = Math.atan2(p.y, p.x);
+    if (!isFinite(a)) a = p.angle;
+    p.x = Math.cos(a) * p.home;
+    p.y = Math.sin(a) * p.home;
+  }
+
+  // Üst üste binen baloncukları yalnızca açısal olarak ayırır.
+  function spreadAngular(iters) {
+    for (var it = 0; it < iters; it++) {
+      var moved = false;
+      for (var i = 0; i < players.length; i++) {
+        var a = players[i];
+        for (var j = i + 1; j < players.length; j++) {
+          var b = players[j];
+          var dx = b.x - a.x, dy = b.y - a.y;
+          var d = Math.sqrt(dx * dx + dy * dy);
+          var min = a.r + b.r + 3;
+          if (d >= min) continue;
+          if (d < 0.01) { dx = Math.cos(a.angle) * 0.01; dy = Math.sin(a.angle) * 0.01; d = 0.01; }
+          var push = ((min - d) / d) * 0.5;
+          a.x -= dx * push; a.y -= dy * push;
+          b.x += dx * push; b.y += dy * push;
+          moved = true;
+        }
+      }
+      for (var k = 0; k < players.length; k++) project(players[k]);
+      if (!moved) break;
+    }
+  }
+
   // Yerleşimi bir kere hesapla ve her baloncuğu yerine çivile.
   // Bu fonksiyon sayfa ömrü boyunca yalnızca bir kez çalışır.
   function layout() {
@@ -241,6 +311,10 @@
     sim.alpha(1);
     for (var i = 0; i < SETTLE_TICKS; i++) sim.tick();
     sim.stop();
+    // Simülasyon açıları ve kümeleri belirledi; şimdi yarıçapları tam
+    // sıralamaya oturtup kalan çakışmaları açıdan çözüyoruz.
+    players.forEach(project);
+    spreadAngular(60);
     nodes.forEach(function (n) { n.fx = n.x; n.fy = n.y; });  // artık kıpırdamazlar
     draw();
   }
@@ -260,8 +334,6 @@
     if (ev.sourceEvent) userMoved = true;
     root.attr("transform", ev.transform);
     gNodes.selectAll("text").attr("opacity", ev.transform.k < 0.32 ? 0 : 1);
-    if (ev.transform.k > 1.35) svg.classed("zoomed", true), applyLabelRule(true);
-    else applyLabelRule(false);
   });
   svg.call(zoom).on("dblclick.zoom", null);
 
@@ -303,13 +375,71 @@
     return d.search.indexOf(state.query) !== -1;
   }
 
-  function applyLabelRule(zoomedIn) {
+  // İsim etiketlerini üst üste bindirmeden yerleştirir. Her isim için dört
+  // aday konum denenir (alt, üst, sağ, sol); hiçbiri boş değilse o isim
+  // gizlenir ve baloncuğun üstüne gelince görünür. Metin haritayla birlikte
+  // ölçeklendiğinden hesap dünya koordinatlarında yapılır.
+  function overlaps(a, b) {
+    return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+  }
+  function labelBox(ox, oy, w, anchor) {
+    if (anchor === "start") return [ox - 2, oy - 11, ox + w, oy + 3];
+    if (anchor === "end") return [ox - w, oy - 11, ox + 2, oy + 3];
+    return [ox - w / 2, oy - 11, ox + w / 2, oy + 3];
+  }
+
+  function applyLabelRule() {
+    var show = {}, taken = [];
+
+    // Baloncukların kendisi de doludur: etiket hiçbirinin üstüne binmesin.
+    nodes.forEach(function (n) {
+      if (!isVisible(n)) return;
+      taken.push([n.x - n.r, n.y - n.r, n.x + n.r, n.y + n.r]);
+    });
+
+    var order = players.slice().sort(function (a, b) {
+      return b.count - a.count || b.r - a.r || a.name.localeCompare(b.name, "tr");
+    });
+    order.forEach(function (p) {
+      if (!isVisible(p)) return;
+      var must = state.selected === p.id || state.hover === p.id ||
+                 (state.query && matches(p));
+      if (!must && !state.allLabels && p.r < CFG.LABEL_MIN_R) return;
+      if (!must && !matches(p)) return;
+
+      var w = p.name.length * 5.9 + 8;
+      var cands = [
+        { x: 0, y: p.r + 13, a: "middle" },
+        { x: 0, y: -p.r - 7, a: "middle" },
+        { x: p.r + 7, y: 4, a: "start" },
+        { x: -p.r - 7, y: 4, a: "end" }
+      ];
+      var chosen = null;
+      for (var i = 0; i < cands.length; i++) {
+        var c = cands[i];
+        var box = labelBox(p.x + c.x, p.y + c.y, w, c.a);
+        var clash = false;
+        for (var j = 0; j < taken.length; j++) {
+          if (overlaps(box, taken[j])) { clash = true; break; }
+        }
+        if (!clash) { chosen = c; taken.push(box); break; }
+      }
+      if (!chosen) {
+        if (!must) return;                       // yer yoksa gizle
+        chosen = cands[0];                       // seçili/aranan isim her hâlükârda görünsün
+        taken.push(labelBox(p.x + chosen.x, p.y + chosen.y, w, chosen.a));
+      }
+      p.lx = chosen.x; p.ly = chosen.y; p.la = chosen.a;
+      show[p.id] = 1;
+    });
+
+    gNodes.selectAll("g.node").select("text")
+      .attr("x", function (d) { return d.isCenter ? 0 : (d.lx || 0); })
+      .attr("y", function (d) { return d.isCenter ? d.r + 13 : (d.ly == null ? d.r + 13 : d.ly); })
+      .attr("text-anchor", function (d) { return d.isCenter ? "middle" : (d.la || "middle"); });
+
     gNodes.selectAll("g.node").select("text").classed("hide-label", function (d) {
-      if (d.isCenter) return false;
-      if (state.allLabels || zoomedIn === true) return false;
-      if (state.selected === d.id || state.hover === d.id) return false;
-      if (state.query && matches(d)) return false;
-      return d.r < CFG.LABEL_MIN_R;
+      return d.isCenter ? false : !show[d.id];
     });
   }
 
@@ -368,7 +498,8 @@
           ? "<div class='tt-meta'>diğer adları: " +
             esc(d.aliases.slice(0, 3).join(", ")) + (d.aliases.length > 3 ? " …" : "") + "</div>"
           : "") +
-        "<div class='tt-meta'>" + d.count + " videoda birlikte oynadık</div>";
+        "<div class='tt-meta'>" + d.count + " videoda birlikte oynadık" +
+          (d.lastDate ? " · son: " + fmtDate(d.lastDate) : "") + "</div>";
     }
     tip.hidden = false;
     moveTip(ev);
@@ -413,6 +544,11 @@
 
     var h = "<h2 class='p-name'>" + esc(d.name) + "</h2>" +
       "<span class='p-clan' style='background:" + d.color + "22;color:" + d.color + "'>" + esc(d.clanName) + "</span>";
+    if (d.lastDate) {
+      h += "<p class='p-note' style='margin-top:8px'>Son birlikte oynadığımız video: <b style='color:#dfe4f7'>" +
+        fmtDate(d.lastDate) + "</b>" +
+        (d.firstDate && d.firstDate !== d.lastDate ? " · ilk: " + fmtDate(d.firstDate) : "") + "</p>";
+    }
     if (d.note) h += "<p class='p-note'>" + esc(d.note) + "</p>";
     if (d.link) h += "<a class='p-link' href='" + esc(d.link) + "' target='_blank' rel='noopener'>Kanalına git →</a>";
 

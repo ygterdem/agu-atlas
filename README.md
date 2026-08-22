@@ -5,6 +5,16 @@ Ortada ben varım; herkes bana bağlı. Bir oyuncu ne kadar çok videoda çıkt�
 baloncuğu o kadar **büyük** ve merkeze o kadar **yakın**. Aynı klandakiler
 aynı renkte ve bir arada kümelenir.
 
+Merkeze uzaklık iki kademeli:
+
+1. **Video sayısı** — çok videoda çıkan içeride.
+2. **Tarih** — video sayısı eşit olanlar arasında, en son birlikte oynadığım
+   kişi daha içeride durur; eski dostlar dışarıda kalır.
+
+İkinci kural birinciyi asla bozmaz: 3 videolu biri, 4 videolu birinden daha
+içeride olamaz. Tarih sıralaması `videos` listesindeki `date` alanlarından
+gelir; tarihi olmayan videolar en eski sayılır.
+
 Yerleşim sayfa açılırken bir kere hesaplanır ve **sabitlenir** — baloncuklar
 hiçbir şekilde kıpırdamaz, sürüklenemez ve her açılışta tam olarak aynı
 yerde durur. Fare tekerleğiyle yakınlaşıp haritada gezebilirsin; bu sadece
