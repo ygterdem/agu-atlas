@@ -7,9 +7,20 @@ aynı renkte ve bir arada kümelenir; klanlar çemberde büyükten küçüğe
 yan yana dizilir.
 
 **Public** bir klan değildir. Klanı olmayan oyuncular tek bir yığın
-oluşturmaz; klanların **arasındaki boşluklara** eşit olarak dağıtılırlar.
+oluşturmaz; klanların **arasındaki boşluklara** dağıtılırlar.
 Böylece klan renkleri blok blok okunur, public'ler de arada kalan yeri
 doldurur. Alt bardaki “klan” sayacı public'i saymaz.
+
+Public'ler rastgele de serpiştirilmez: **birbiriyle sık oynayanlar bir arada
+tutulur.** En az **2 ayrı videoda** birlikte oynayan iki public aynı gruba
+girer ve bu geçişlidir (A-B ile B-C bağlıysa üçü tek grup olur). Her grup
+bölünmeden tek bir boşluğa yerleşir, yani klanı olmayan ama hep beraber
+oynayan takımlar haritada kendiliğinden bir küme oluşturur. Eşiği
+`assets/atlas.js` içindeki `PUBLIC_GROUP_MIN` ile değiştirebilirsin.
+
+Detay panelinde herkes için **“En çok birlikte oynadıkları”** listesi var;
+kimin kiminle kaç videoda oynadığını oradan görebilir, tıklayıp o kişiye
+geçebilirsin.
 
 Merkeze uzaklık iki kademeli:
 
@@ -185,3 +196,4 @@ Tek dış bağımlılık: [D3.js](https://d3js.org) (CDN üzerinden). Derleme ad
 | `R_CENTER` | Ortadaki (senin) baloncuğun boyutu |
 | `LABEL_MIN_R` | Bu boyutun altındaki isimler sadece üzerine gelince görünür |
 | `PALETTE` | Rengi belirtilmemiş klanlara atanacak renkler |
+| `PUBLIC_GROUP_MIN` | Kaç ayrı videoda birlikte oynayan public'ler aynı grup sayılsın (varsayılan 2) |

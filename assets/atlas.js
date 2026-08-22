@@ -14,6 +14,7 @@
     R_MAX: 30,         // en büyük baloncuk yarıçapı
     R_CENTER: 46,      // merkez baloncuk yarıçapı
     LABEL_MIN_R: 13,   // bu yarıçapın altındakilerin ismi normalde gizli
+    PUBLIC_GROUP_MIN: 2, // kaç ayrı videoda birlikte oynayanlar aynı grup sayılsın
     PALETTE: ["#ffd166", "#ff5c8a", "#5cc8ff", "#8bd450", "#b18cff",
               "#ff9f45", "#4ecdc4", "#e05be0", "#7ea6ff", "#d4b483"],
     NO_CLAN: { tag: "__none__", name: "Public", color: "#7d87ad" }
@@ -78,6 +79,29 @@
     };
   }).filter(function (p) { return p.count > 0; });
 
+  // Hangi videoda kimler var / id ile oyuncuya eriş.
+  var playerById = {};
+  players.forEach(function (p) { playerById[p.id] = p; });
+  var videoRoster = {};
+  players.forEach(function (p) {
+    p.videos.forEach(function (v) { (videoRoster[v] = videoRoster[v] || []).push(p); });
+  });
+
+  // Bir oyuncunun en çok birlikte oynadıkları (kaç ayrı videoda birlikte).
+  function coPlayers(p) {
+    var cnt = {};
+    p.videos.forEach(function (v) {
+      (videoRoster[v] || []).forEach(function (o) {
+        if (o.id !== p.id) cnt[o.id] = (cnt[o.id] || 0) + 1;
+      });
+    });
+    return Object.keys(cnt).map(function (id) {
+      return { p: playerById[id], n: cnt[id] };
+    }).sort(function (a, b) {
+      return b.n - a.n || a.p.name.localeCompare(b.p.name, "tr");
+    });
+  }
+
   // videosu olmayan oyuncular elendi; klan sayaçlarını yeniden hesapla
   Object.keys(clanByTag).forEach(function (t) { clanByTag[t].count = 0; });
   players.forEach(function (p) { clanByTag[p.clan].count++; });
@@ -107,6 +131,7 @@
       .filter(Boolean).sort();
     p.lastDate = ds.length ? ds[ds.length - 1] : "";
     p.firstDate = ds.length ? ds[0] : "";
+    p.r = rScale(p.count);
   });
 
   // Klan geçmişi: her video için o dönemki klan (clanAt) yoksa mevcut klan.
@@ -176,41 +201,108 @@
     (clanMembers[p.clan] = clanMembers[p.clan] || []).push(p);
   });
 
+  // Bir baloncuğun kendi yarıçapında kapladığı açı. Merkeze yakın olanlar
+  // aynı genişlik için daha çok açıya ihtiyaç duyar.
+  function needAngle(p) { return (2 * p.r + 6) / Math.max(40, p.home); }
+  function needOf(list) {
+    return list.reduce(function (a, p) { return a + needAngle(p); }, 0);
+  }
+  // Listeyi verilen yaya, her üyeye ihtiyacı oranında yer vererek dizer.
   function spreadInto(list, center, span) {
-    var use = Math.max(0.06, span * 0.86);
-    list.forEach(function (p, i) {
-      var frac = list.length > 1 ? (i / (list.length - 1) - 0.5) : 0;
-      p.angle = center + frac * use;
+    if (!list.length) return;
+    var tot = needOf(list) || 1;
+    var use = Math.max(0.04, span * 0.94);
+    var start = center - use / 2, acc = 0;
+    list.forEach(function (p) {
+      var w = needAngle(p) / tot * use;
+      p.angle = start + acc + w / 2;
+      acc += w;
     });
   }
 
-  if (!clanList.length) {
-    // Hiç klan yoksa herkes çembere eşit dağılır.
-    publics.forEach(function (p, i) { p.angle = TOP + (i / (publics.length || 1)) * TAU; });
-  } else {
-    var gaps = clanList.length;                       // her klandan sonra bir boşluk
-    var publicSpan = (publics.length / total) * TAU;  // public'lere düşen toplam yay
-    var gapSpan = publicSpan / gaps;
-    var acc = 0;
+  // Public'ler klansız ama gruplaşabilir: birbirleriyle CFG.PUBLIC_GROUP_MIN
+  // veya daha fazla AYRI videoda oynayanlar aynı takım sayılır ve haritada
+  // yan yana durur. (Birleşme geçişlidir: A-B ve B-C bağlıysa üçü bir grup.)
+  var publicGroups = (function () {
+    if (!publics.length) return [];
+    var idx = {};
+    publics.forEach(function (p, i) { idx[p.id] = i; });
 
-    // Public'leri sırayla değil dönüşümlü dağıt ki her boşlukta benzer
-    // yoğunlukta olsunlar.
+    var pairs = {};
+    Object.keys(videoRoster).forEach(function (v) {
+      var list = videoRoster[v].filter(function (p) { return p.clan === CFG.NO_CLAN.tag; });
+      for (var i = 0; i < list.length; i++) {
+        for (var j = i + 1; j < list.length; j++) {
+          var a = idx[list[i].id], b = idx[list[j].id];
+          var k = a < b ? a + "|" + b : b + "|" + a;
+          pairs[k] = (pairs[k] || 0) + 1;
+        }
+      }
+    });
+
+    var parent = publics.map(function (_, i) { return i; });
+    function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+    Object.keys(pairs).forEach(function (k) {
+      if (pairs[k] < CFG.PUBLIC_GROUP_MIN) return;
+      var ab = k.split("|"), a = find(+ab[0]), b = find(+ab[1]);
+      if (a !== b) parent[b] = a;
+    });
+
+    var byRoot = {};
+    publics.forEach(function (p, i) {
+      var r = find(i);
+      (byRoot[r] = byRoot[r] || []).push(p);
+    });
+    var groups = Object.keys(byRoot).map(function (r) { return byRoot[r]; });
+    groups.forEach(function (g) {
+      g.sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name, "tr"); });
+      g.forEach(function (p) { p.pubGroupSize = g.length; });
+    });
+    // Kalabalık takımlar önce; tek başına oynayanlar en sona.
+    groups.sort(function (a, b) {
+      return b.length - a.length || b[0].count - a[0].count ||
+             a[0].name.localeCompare(b[0].name, "tr");
+    });
+    return groups;
+  })();
+
+  if (!clanList.length) {
+    // Hiç klan yoksa public grupları çembere sırayla dizilir.
+    var flat = [];
+    publicGroups.forEach(function (g) { g.forEach(function (p) { flat.push(p); }); });
+    spreadInto(flat, TOP + Math.PI, TAU);
+  } else {
+    var gaps = clanList.length;   // her klandan sonra bir boşluk
+
+    // Grupları boşluklara dağıt: her grup BÖLÜNMEDEN, o an en az dolu olan
+    // boşluğa gider. Böylece birlikte oynayanlar yan yana kalır.
     var buckets = [];
     for (var gi = 0; gi < gaps; gi++) buckets.push([]);
-    publics.slice().sort(function (a, b) {
-      return b.count - a.count || a.name.localeCompare(b.name, "tr");
-    }).forEach(function (p, i) { buckets[i % gaps].push(p); });
+    publicGroups.forEach(function (g) {
+      var best = 0;
+      for (var i = 1; i < gaps; i++) if (buckets[i].length < buckets[best].length) best = i;
+      g.forEach(function (p) { buckets[best].push(p); });
+    });
 
+    // Yay payları kişi sayısına değil, o kişilerin gerçekten ihtiyaç duyduğu
+    // açıya göre veriliyor: merkeze yakın (çok videolu) baloncuklar daha
+    // geniş yer alır, böylece gruplar birbirinin üstüne taşmaz.
+    var blocks = [];
     clanList.forEach(function (c, i) {
-      var span = (c.count / total) * TAU;
-      c.a0 = acc; c.a1 = acc + span;
-      c.angle = TOP + acc + span / 2;
-      spreadInto(clanMembers[c.tag] || [], c.angle, span);
-      acc += span;
+      blocks.push({ kind: "clan", clan: c, list: clanMembers[c.tag] || [] });
+      blocks.push({ kind: "gap", list: buckets[i] });
+    });
+    var grand = blocks.reduce(function (a, b) { return a + needOf(b.list); }, 0) || 1;
 
-      var gCenter = TOP + acc + gapSpan / 2;
-      spreadInto(buckets[i], gCenter, gapSpan);
-      acc += gapSpan;
+    var acc = 0;
+    blocks.forEach(function (b) {
+      var span = needOf(b.list) / grand * TAU;
+      if (b.kind === "clan") {
+        b.clan.a0 = acc; b.clan.a1 = acc + span;
+        b.clan.angle = TOP + acc + span / 2;
+      }
+      spreadInto(b.list, TOP + acc + span / 2, span);
+      acc += span;
     });
   }
 
@@ -684,6 +776,19 @@
         var at = d.clanItems[v.id];
         return videoRow(v, at !== d.clan ? at : "");
       }).join("");
+
+    var co = coPlayers(d).filter(function (x) { return x.n > 1; }).slice(0, 8);
+    if (co.length) {
+      h += "<div class='p-sec'>En çok birlikte oynadıkları" +
+        (d.isPublic && d.pubGroupSize > 1
+          ? " <span style='text-transform:none;letter-spacing:0'>· haritada yanında duruyorlar</span>"
+          : "") + "</div><div class='chips'>" +
+        co.map(function (x) {
+          return "<span class='chip' data-go='" + x.p.id + "' style='border-color:" +
+            x.p.color + "55'>" + esc(x.p.name) +
+            " <span style='opacity:.55'>" + x.n + " video</span></span>";
+        }).join("") + "</div>";
+    }
 
     if (mates.length && !d.isPublic) {
       h += "<div class='p-sec'>Aynı klandan</div><div class='chips'>" +
