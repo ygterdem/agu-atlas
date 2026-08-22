@@ -100,7 +100,7 @@
     return null;
   }
   function clanColor(t) { var c = clanByTag(t); return c ? c.color : "#7d87ad"; }
-  function clanName(t) { var c = clanByTag(t); return c ? c.name : "Bağımsız"; }
+  function clanName(t) { var c = clanByTag(t); return c ? c.name : "Public"; }
   function videoById(id) {
     for (var i = 0; i < M.videos.length; i++) if (M.videos[i].id === id) return M.videos[i];
     return null;
@@ -590,7 +590,7 @@
   // ============================================================== OYUNCULAR
   function clanOptions(selected) {
     var orphan = selected && !clanByTag(selected);
-    return "<option value=''" + (selected ? "" : " selected") + ">— Bağımsız —</option>" +
+    return "<option value=''" + (selected ? "" : " selected") + ">— Public —</option>" +
       M.clans.map(function (c) {
         return "<option value='" + esc(c.tag) + "'" + (c.tag === selected ? " selected" : "") + ">" +
           esc(c.name) + "</option>";
@@ -720,13 +720,13 @@
     if (!orph.length) { box.innerHTML = ""; return; }
     box.innerHTML = "<div class='note bad'><b>Klansız kalmış etiketler var.</b> " +
       "Aşağıdaki etiketler oyuncularda kullanılmış ama böyle bir klan tanımlı değil, " +
-      "bu yüzden o oyuncular haritada gri “Bağımsız” görünür. Tek tıkla düzelt:" +
+      "bu yüzden o oyuncular haritada gri “Public” görünür. Tek tıkla düzelt:" +
       "<div style='display:flex;flex-wrap:wrap;gap:8px;margin-top:10px'>" +
       orph.map(function (o) {
         return "<button class='btn sm' data-fix='" + esc(o.tag) + "'>+ “" + esc(o.tag) +
           "” klanını oluştur (" + o.n + " oyuncu)</button>" +
           "<button class='btn sm ghost' data-clear='" + esc(o.tag) + "'>" + o.n +
-          " oyuncuyu Bağımsız yap</button>";
+          " oyuncuyu Public yap</button>";
       }).join("") + "</div></div>";
 
     box.querySelectorAll("[data-fix]").forEach(function (b) {
@@ -743,7 +743,7 @@
         var n = 0;
         M.players.forEach(function (p) { if (p.clan === tag) { p.clan = ""; n++; } });
         persist(); renderAll();
-        toast(n + " oyuncu Bağımsız yapıldı");
+        toast(n + " oyuncu Public yapıldı");
       };
     });
   }
@@ -751,7 +751,7 @@
   function renderClans() {
     renderOrphans();
     var box = $("c-table");
-    if (!M.clans.length) { box.innerHTML = "<div class='empty'>Henüz klan yok. Klansız oyuncular “Bağımsız” olur.</div>"; return; }
+    if (!M.clans.length) { box.innerHTML = "<div class='empty'>Henüz klan yok. Klansız oyuncular “Public” olur.</div>"; return; }
     box.innerHTML = "<table class='t'><thead><tr>" +
       "<th style='width:120px'>Etiket</th><th style='min-width:180px'>Ad</th>" +
       "<th style='width:70px'>Renk</th><th class='num'>Üye</th><th></th></tr></thead><tbody>" +
@@ -795,7 +795,7 @@
         var c = M.clans[+b.getAttribute("data-del")];
         var n = M.players.filter(function (p) { return p.clan === c.tag; }).length;
         if (!confirm("“" + c.name + "” klanı silinsin mi?" +
-          (n ? "\n" + n + " oyuncu “Bağımsız” olacak (oyuncular silinmez)." : ""))) return;
+          (n ? "\n" + n + " oyuncu “Public” olacak (oyuncular silinmez)." : ""))) return;
         M.players.forEach(function (p) {
           if (p.clan === c.tag) p.clan = "";
           Object.keys(p.clanAt || {}).forEach(function (k) {
@@ -866,7 +866,7 @@
       });
       if (p.clan && !clanByTag(p.clan)) {
         out.push("<b>" + esc(p.name) + "</b> oyuncusu <b>" + esc(p.clan) +
-          "</b> klanına bağlı ama böyle bir klan yok — haritada “Bağımsız” görünür.");
+          "</b> klanına bağlı ama böyle bir klan yok — haritada “Public” görünür.");
       }
       p.videos.forEach(function (vid) {
         if (!videoById(vid)) out.push("<b>" + esc(p.name) + "</b> oyuncusunda olmayan video id'si: <b>" + esc(vid) + "</b>");

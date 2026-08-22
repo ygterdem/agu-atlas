@@ -3,7 +3,13 @@
 Videolarımda birlikte oynadığım oyuncuların bağlantı haritası.
 Ortada ben varım; herkes bana bağlı. Bir oyuncu ne kadar çok videoda çıktıysa
 baloncuğu o kadar **büyük** ve merkeze o kadar **yakın**. Aynı klandakiler
-aynı renkte ve bir arada kümelenir.
+aynı renkte ve bir arada kümelenir; klanlar çemberde büyükten küçüğe
+yan yana dizilir.
+
+**Public** bir klan değildir. Klanı olmayan oyuncular tek bir yığın
+oluşturmaz; klanların **arasındaki boşluklara** eşit olarak dağıtılırlar.
+Böylece klan renkleri blok blok okunur, public'ler de arada kalan yeri
+doldurur. Alt bardaki “klan” sayacı public'i saymaz.
 
 Merkeze uzaklık iki kademeli:
 
@@ -131,7 +137,7 @@ kalır; arama kutusunda eski adıyla da bulunur ve detay panelinde
 yazsan bile aynı kişiyi bulur, ikinci bir kayıt açmaz.
 
 > En sık yapılan hata: `players` içindeki `clan` değerinin `clans` içindeki
-> hiçbir `tag` ile eşleşmemesi. O oyuncular sessizce gri “Bağımsız” olur.
+> hiçbir `tag` ile eşleşmemesi. O oyuncular sessizce gri “Public” olur.
 > Düzenleyici bunu yakalayıp tek tıkla düzeltir; elle yazarken dikkat et.
 
 ---

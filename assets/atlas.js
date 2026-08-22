@@ -16,7 +16,7 @@
     LABEL_MIN_R: 13,   // bu yarıçapın altındakilerin ismi normalde gizli
     PALETTE: ["#ffd166", "#ff5c8a", "#5cc8ff", "#8bd450", "#b18cff",
               "#ff9f45", "#4ecdc4", "#e05be0", "#7ea6ff", "#d4b483"],
-    NO_CLAN: { tag: "__none__", name: "Bağımsız", color: "#7d87ad" }
+    NO_CLAN: { tag: "__none__", name: "Public", color: "#7d87ad" }
   };
 
   var DATA = window.ATLAS_DATA;
@@ -82,9 +82,15 @@
   Object.keys(clanByTag).forEach(function (t) { clanByTag[t].count = 0; });
   players.forEach(function (p) { clanByTag[p.clan].count++; });
 
-  // boş klanları listeden düş, bağımsızlar varsa en sona ekle
-  var clanList = clans.filter(function (c) { return c.count > 0; });
-  if (clanByTag[CFG.NO_CLAN.tag].count > 0) clanList.push(clanByTag[CFG.NO_CLAN.tag]);
+  // Public bir klan değil: klan listesinden ayrı tutuluyor.
+  // Klanlar büyükten küçüğe sıralanır ki çemberde yan yana dursunlar ve
+  // renk blokları okunaklı olsun.
+  var clanList = clans.filter(function (c) { return c.count > 0; })
+    .sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name, "tr"); });
+  var publicClan = clanByTag[CFG.NO_CLAN.tag];
+  var hasPublic = publicClan.count > 0;
+  // Efsanede (legend) yine görünsün ki filtrelenebilsin.
+  var legendList = clanList.concat(hasPublic ? [publicClan] : []);
 
   var maxCount = d3.max(players, function (d) { return d.count; }) || 1;
   var rScale = d3.scaleSqrt().domain([1, Math.max(2, maxCount)]).range([CFG.R_MIN, CFG.R_MAX]).clamp(true);
@@ -156,13 +162,57 @@
     });
   })();
 
-  // klanlara üye sayısıyla orantılı yay payı ver
-  var total = players.length || 1, acc = 0;
-  clanList.forEach(function (c) {
-    var span = (c.count / total) * Math.PI * 2;
-    c.a0 = acc; c.a1 = acc + span; c.angle = acc + span / 2 - Math.PI / 2;
-    acc += span;
+  // Açı dağılımı:
+  //  - Klanlar birbirine bitişik bloklar hâlinde yerleşir (üye sayısıyla
+  //    orantılı yay payı alır).
+  //  - Public oyuncular tek bir blok oluşturmaz; klanların ARASINDAKİ
+  //    boşluklara eşit olarak dağıtılır.
+  var TAU = Math.PI * 2, TOP = -Math.PI / 2;
+  var total = players.length || 1;
+  var publics = players.filter(function (p) { return p.clan === CFG.NO_CLAN.tag; });
+  var clanMembers = {};
+  players.forEach(function (p) {
+    if (p.clan === CFG.NO_CLAN.tag) return;
+    (clanMembers[p.clan] = clanMembers[p.clan] || []).push(p);
   });
+
+  function spreadInto(list, center, span) {
+    var use = Math.max(0.06, span * 0.86);
+    list.forEach(function (p, i) {
+      var frac = list.length > 1 ? (i / (list.length - 1) - 0.5) : 0;
+      p.angle = center + frac * use;
+    });
+  }
+
+  if (!clanList.length) {
+    // Hiç klan yoksa herkes çembere eşit dağılır.
+    publics.forEach(function (p, i) { p.angle = TOP + (i / (publics.length || 1)) * TAU; });
+  } else {
+    var gaps = clanList.length;                       // her klandan sonra bir boşluk
+    var publicSpan = (publics.length / total) * TAU;  // public'lere düşen toplam yay
+    var gapSpan = publicSpan / gaps;
+    var acc = 0;
+
+    // Public'leri sırayla değil dönüşümlü dağıt ki her boşlukta benzer
+    // yoğunlukta olsunlar.
+    var buckets = [];
+    for (var gi = 0; gi < gaps; gi++) buckets.push([]);
+    publics.slice().sort(function (a, b) {
+      return b.count - a.count || a.name.localeCompare(b.name, "tr");
+    }).forEach(function (p, i) { buckets[i % gaps].push(p); });
+
+    clanList.forEach(function (c, i) {
+      var span = (c.count / total) * TAU;
+      c.a0 = acc; c.a1 = acc + span;
+      c.angle = TOP + acc + span / 2;
+      spreadInto(clanMembers[c.tag] || [], c.angle, span);
+      acc += span;
+
+      var gCenter = TOP + acc + gapSpan / 2;
+      spreadInto(buckets[i], gCenter, gapSpan);
+      acc += gapSpan;
+    });
+  }
 
   // merkez düğüm
   var center = {
@@ -175,18 +225,13 @@
     r: CFG.R_CENTER, fx: 0, fy: 0, x: 0, y: 0
   };
 
-  // düğüm konumlarını klan yayı içine yay
-  var perClanIndex = {};
+  // düğüm görselleri (açı yukarıda hesaplandı)
   players.forEach(function (p) {
     var c = clanByTag[p.clan];
-    var i = perClanIndex[p.clan] = (perClanIndex[p.clan] || 0);
-    perClanIndex[p.clan]++;
-    var span = Math.max(0.12, (c.a1 - c.a0) * 0.86);
-    var frac = c.count > 1 ? (i / (c.count - 1) - 0.5) : 0;
     p.r = rScale(p.count);
     p.color = c.color;
     p.clanName = c.name;
-    p.angle = c.angle + frac * span;
+    p.isPublic = p.clan === CFG.NO_CLAN.tag;
     p.tx = Math.cos(p.angle) * p.home;
     p.ty = Math.sin(p.angle) * p.home;
     p.x = p.tx; p.y = p.ty;
@@ -498,6 +543,7 @@
   function isNeighbourOfSelected(d) {
     var sel = nodes.find(function (n) { return n.id === state.selected; });
     if (!sel || sel.isCenter) return true;
+    if (sel.isPublic) return false;   // Public bir klan değil, hepsini vurgulama
     return d.clan === sel.clan;
   }
 
@@ -609,7 +655,8 @@
     h += "<div class='p-stats'>" +
       "<div class='p-stat'><b>" + d.count + "</b><span>Video</span></div>" +
       "<div class='p-stat'><b>%" + share + "</b><span>Videolarımın</span></div>" +
-      "<div class='p-stat'><b>" + (mates.length + 1) + "</b><span>Klan üyesi</span></div>" +
+      "<div class='p-stat'><b>" + (d.isPublic ? d.count : mates.length + 1) + "</b><span>" +
+        (d.isPublic ? "Video" : "Klan üyesi") + "</span></div>" +
       "</div>";
 
     if (d.aliases.length) {
@@ -638,7 +685,7 @@
         return videoRow(v, at !== d.clan ? at : "");
       }).join("");
 
-    if (mates.length) {
+    if (mates.length && !d.isPublic) {
       h += "<div class='p-sec'>Aynı klandan</div><div class='chips'>" +
         mates.map(function (m) {
           return "<span class='chip' data-go='" + m.id + "'>" + esc(m.name) + " <span style='opacity:.55'>" + m.count + "</span></span>";
@@ -681,15 +728,18 @@
   }
 
   // -------------------------------------------------------------------- legend
-  var legendList = document.getElementById("legend-list");
+  var legendBox = document.getElementById("legend-list");
   function renderLegend() {
-    legendList.innerHTML = clanList.map(function (c) {
-      return "<div class='legend-item" + (state.hidden[c.tag] ? " off" : "") + "' data-clan='" + esc(c.tag) + "'>" +
+    legendBox.innerHTML = legendList.map(function (c) {
+      var sep = c.tag === CFG.NO_CLAN.tag
+        ? ";margin-top:6px;padding-top:9px;border-top:1px solid rgba(255,255,255,.12)" : "";
+      return "<div class='legend-item" + (state.hidden[c.tag] ? " off" : "") + "' data-clan='" +
+        esc(c.tag) + "' style='border-radius:8px" + sep + "'>" +
         "<span class='swatch' style='background:" + c.color + "'></span>" +
         "<span class='lname'>" + esc(c.name) + "</span>" +
         "<span class='lcount'>" + c.count + "</span></div>";
     }).join("");
-    legendList.querySelectorAll("[data-clan]").forEach(function (el) {
+    legendBox.querySelectorAll("[data-clan]").forEach(function (el) {
       el.onclick = function () {
         var t = el.getAttribute("data-clan");
         state.hidden[t] = !state.hidden[t];
@@ -736,6 +786,7 @@
     "<span><b>" + players.length + "</b> oyuncu</span>" +
     "<span><b>" + (DATA.videos || []).length + "</b> video</span>" +
     "<span><b>" + clanList.length + "</b> klan</span>" +
+    (hasPublic ? "<span><b>" + publicClan.count + "</b> public</span>" : "") +
     "<span><b>" + players.reduce(function (a, p) { return a + p.count; }, 0) + "</b> katılım</span>";
 
   var sub = document.getElementById("brand-sub");
