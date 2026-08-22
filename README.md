@@ -6,11 +6,15 @@ oynayan herkes birbirine bağlanır, bağın gücü kaç ayrı videoda birlikte
 oynadıklarıdır. Yerleşimi bu bağlar belirler, dolayısıyla hep beraber oynayan
 insanlar haritada kendiliğinden bir **küme** oluşturur.
 
+Bu bağlar normalde **çizilmez** — 15 binden fazla çizgi haritayı okunmaz
+hâle getiriyordu. Bir baloncuğa **tıklayınca** yalnızca o kişinin bağları
+çıkar ve sadece birlikte oynadıkları parlar; boşluğa tıklayınca kaybolur.
+
 Ben her videoda olduğum için **herkes bana da bağlıdır**. Bu bağlar haritayı
 tek parça tutar (hiçbir küme kopuk bir ada olarak savrulmaz) ve merkeze
 uzaklığı tarihe göre ayarlar. Tekerleğe dönmesin diye oyuncular arası
 bağlardan çok daha soluk çizilirler; gücü `HUB_PULL`, görünürlüğü
-`HUB_ALPHA` ile ayarlanır.
+`HUB_ALPHA` ile ayarlanır. Haritada sürekli görünen tek çizgi bunlardır.
 
 - **Baloncuk boyutu** = kaç videoda çıktığı.
 - **Merkeze yakınlık** = en son ne zaman birlikte oynandığı. Bu artık kesin

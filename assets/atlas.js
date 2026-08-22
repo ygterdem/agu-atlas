@@ -13,7 +13,6 @@
     BUBBLE_PAD: 4,     // baloncuklar arası boşluk
     RECENCY_PULL: 0.22,// merkeze uzaklık ne kadar tarihe uysun (0 = sadece kümeler)
     TEAM_MIN: 4,       // kaç kişilik public grubu kendi rengini alsın
-    LINK_ALPHA: 0.14,  // oyuncular arası bağların görünürlüğü
     HUB_ALPHA: 0.11,   // bana giden bağların görünürlüğü
     HUB_PULL: 0.20,    // bana giden bağların çekim gücü
     CHARGE: -70,       // baloncukların birbirini itmesi (küme aralığı)
@@ -347,7 +346,6 @@
 
   var root = svg.append("g").attr("class", "root");
   var gRings = root.append("g").attr("class", "rings");
-  var gLinks = root.append("g").attr("class", "links");
   var gNodes = root.append("g").attr("class", "nodes");
 
   // merkezden dışa doğru yoğunluk halkaları
@@ -366,17 +364,8 @@
     }
     return d.join("");
   }
-  var linkGroups = (function () {
-    var by = {};
-    coLinks.forEach(function (l) {
-      var c = l.source.r >= l.target.r ? l.source.color : l.target.color;
-      (by[c] = by[c] || []).push(l);
-    });
-    return Object.keys(by).map(function (c) { return { color: c, list: by[c] }; });
-  })();
-
   // Bana giden bağlar en altta, çok soluk.
-  var gHub = root.insert("g", ".links").attr("class", "hublinks");
+  var gHub = root.insert("g", ".nodes").attr("class", "hublinks");
   var hubPath = gHub.append("path")
     .attr("fill", "none")
     .attr("stroke", "#c9d3f2")
@@ -384,17 +373,11 @@
     .attr("stroke-width", 0.55)
     .attr("d", "");
 
-  var link = gLinks.selectAll("path").data(linkGroups).join("path")
-    .attr("class", "link")
-    .attr("fill", "none")
-    .attr("stroke", function (g) { return g.color; })
-    .attr("stroke-opacity", CFG.LINK_ALPHA)
-    .attr("stroke-width", 0.8);
-
-  // Seçili oyuncunun bağlarını öne çıkarmak için ayrı bir katman.
+  // Oyuncular arası bağlar normalde çizilmez — harita temiz kalsın diye.
+  // Bir baloncuğa tıklayınca YALNIZCA o kişinin bağları görünür.
   var gHi = root.insert("g", ".nodes").attr("class", "hilinks");
   var hiPath = gHi.append("path")
-    .attr("fill", "none").attr("stroke-width", 1.1).attr("stroke-opacity", 0.55)
+    .attr("fill", "none").attr("stroke-width", 1.3).attr("stroke-opacity", 0.7)
     .attr("d", "");
 
   var node = gNodes.selectAll("g.node").data(nodes, function (d) { return d.id; }).join("g")
@@ -423,6 +406,13 @@
     .attr("x", 0)
     .attr("y", function (d) { return d.r + 13; })
     .text(function (d) { return d.name; });
+
+  // Hangi oyuncu kiminle oynamış (tıklayınca vurgulamak için).
+  var neighbours = {};
+  coLinks.forEach(function (l) {
+    (neighbours[l.source.id] = neighbours[l.source.id] || {})[l.target.id] = l.w;
+    (neighbours[l.target.id] = neighbours[l.target.id] || {})[l.source.id] = l.w;
+  });
 
   // Kuvvet simülasyonu bir kez çalışır, sonra herkes yerine çivilenir.
   function layout() {
@@ -456,7 +446,6 @@
 
   function draw() {
     hubPath.attr("d", edgePath(hubLinks));
-    link.attr("d", function (g) { return edgePath(g.list); });
     node.attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; });
   }
 
@@ -591,8 +580,7 @@
       });
     // Bağ katmanı: tek tek değil topluca sönümlenir (15 binden fazla bağ var).
     var dim = !!(state.query || state.selected);
-    gLinks.attr("opacity", dim ? 0.28 : 1);
-    gHub.attr("opacity", dim ? 0.35 : 1);
+    gHub.attr("opacity", dim ? 0.3 : 1);
 
     // Seçili oyuncunun bağları öne çıkar.
     if (state.selected && playerById[state.selected]) {
@@ -607,12 +595,11 @@
     renderLegend();
   }
 
+  // Seçili oyuncuyla birlikte oynamış mı? (Tıklayınca sadece onlar parlar.)
   function isNeighbourOfSelected(d) {
-    var sel = nodes.find(function (n) { return n.id === state.selected; });
-    if (!sel || sel.isCenter) return true;
-    if (sel.teamTag) return d.teamTag === sel.teamTag;
-    if (sel.isPublic) return false;   // Public bir klan değil, hepsini vurgulama
-    return !d.teamTag && d.clan === sel.clan;
+    var sel = playerById[state.selected];
+    if (!sel) return true;                       // merkez seçiliyse herkes
+    return !!(neighbours[sel.id] && neighbours[sel.id][d.id]);
   }
 
   // --------------------------------------------------------------- etkileşim
