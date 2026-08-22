@@ -179,3 +179,11 @@ code.out{
 .savebar b{color:var(--ink)}
 .dot{width:7px;height:7px;border-radius:50%;background:#8bd450;flex:0 0 7px}
 .dot.dirty{background:var(--accent)}
+
+/* "bu ad kimin eski adi?" modu */
+.ac-hint{
+  margin-top:12px;padding:9px 12px;border-radius:10px;font-size:12.5px;line-height:1.5;
+  background:rgba(126,166,255,.10);border:1px solid rgba(126,166,255,.35);color:#cfe0ff;
+}
+.ac-hint b{color:#fff}
+#r-input.alias-mode{border-color:rgba(126,166,255,.7);background:rgba(126,166,255,.06)}

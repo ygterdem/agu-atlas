@@ -11,6 +11,7 @@
   var M = null;             // model
   var selVideo = null;      // kadro ekranında seçili video id
   var acIndex = -1;         // autocomplete'te seçili satır
+  var aliasPending = null;  // "bu ad kimin eski adı?" modunda bekleyen ad
   var NL = String.fromCharCode(10);   // confirm() metinlerinde satır sonu
 
   // ------------------------------------------------------------ yardımcılar
@@ -207,6 +208,7 @@
       "</div>" +
       "<div class='sec-label'>Bu videoda oynayanlar</div>" +
       "<div class='squad' id='r-squad'></div>" +
+      "<div class='ac-hint' id='r-hint' hidden></div>" +
       "<div class='ac-wrap' style='margin-top:12px'>" +
         "<input type='text' id='r-input' placeholder='İsim yaz, Enter'a bas…' autocomplete='off' spellcheck='false'>" +
         "<div class='ac' id='r-ac' hidden></div>" +
@@ -265,6 +267,9 @@
       p = { name: name, clan: "", aliases: [], videos: [], link: "", note: "" };
       M.players.push(p);
       toast("“" + name + "” oluşturuldu", "good");
+    } else if (inVideo(p, selVideo)) {
+      toast("\u201c" + p.name + "\u201d bu videoya zaten eklenmi\u015f");
+      return;
     } else {
       var via = matchedAlias(p, name);
       if (via) toast("“" + via + "” = " + p.name + " olarak eklendi", "good");
@@ -273,57 +278,155 @@
     persist(); renderAll();
   }
 
+  // Kadro kutusunun altindaki oneri listesi.
+  //  - Zaten kadroda olanlar listede kalir, "zaten eklendi" diye isaretlenir.
+  //  - Eski adlarla da arar ve hangi eski adla eslestigini gosterir.
+  //  - Yazdigin ad hic yoksa: yeni oyuncu ac ya da bunu mevcut bir oyuncunun
+  //    eski adi olarak bagla.
   function wireAutocomplete() {
-    var inp = $("r-input"), ac = $("r-ac");
+    var inp = $("r-input"), ac = $("r-ac"), hint = $("r-hint");
     if (!inp) return;
-    function options() {
-      var q = norm(inp.value);
-      if (!q) return [];
-      return M.players.filter(function (p) {
-        if (inVideo(p, selVideo)) return false;
-        if (norm(p.name).indexOf(q) !== -1) return true;
-        return (p.aliases || []).some(function (a) { return norm(a).indexOf(q) !== -1; });
-      }).slice(0, 8);
+
+    function aliasHit(p, q) {
+      var hits = (p.aliases || []).filter(function (a) { return norm(a).indexOf(q) !== -1; });
+      return hits.length ? hits[0] : null;
     }
-    function draw() {
-      var opts = options(), q = inp.value.trim();
-      var exact = !!playerByName(q);
-      var qn = norm(inp.value);
-      var html = opts.map(function (p, i) {
-        var hit = (p.aliases || []).filter(function (a) { return norm(a).indexOf(qn) !== -1; })[0];
-        var via = (norm(p.name).indexOf(qn) === -1 && hit)
-          ? "<span style='color:var(--ink-dim);font-size:11.5px'>← " + esc(hit) + "</span>" : "";
-        return "<div data-i='" + i + "'" + (i === acIndex ? " class='sel'" : "") + ">" +
-          "<span class='swatch' style='display:inline-block;width:9px;height:9px;border-radius:50%;background:" +
-          clanColor(p.clan) + "'></span>" + esc(p.name) + " " + via +
-          "<span style='margin-left:auto;color:var(--ink-dim);font-size:11.5px'>" + p.videos.length + " video</span></div>";
-      }).join("");
-      if (q && !exact) {
-        html += "<div class='new' data-new='1'" + (acIndex === opts.length ? " class='sel'" : "") + ">" +
-          "+ “" + esc(q) + "” adında yeni oyuncu oluştur</div>";
+
+    function rows() {
+      var q = norm(inp.value), list = [];
+
+      if (aliasPending) {
+        M.players.filter(function (p) {
+          return !q || norm(p.name).indexOf(q) !== -1 || aliasHit(p, q);
+        }).sort(function (a, b) {
+          return b.videos.length - a.videos.length || a.name.localeCompare(b.name, "tr");
+        }).slice(0, 10).forEach(function (p) {
+          list.push({ kind: "alias", p: p, via: aliasHit(p, q) });
+        });
+        list.push({ kind: "cancel" });
+        return list;
       }
-      ac.innerHTML = html;
-      ac.hidden = !html;
-      ac.querySelectorAll("[data-i]").forEach(function (el) {
-        el.onclick = function () { addToSquad(opts[+el.getAttribute("data-i")].name); };
+
+      if (!q) return list;
+      M.players.filter(function (p) {
+        return norm(p.name).indexOf(q) !== -1 || aliasHit(p, q);
+      }).sort(function (a, b) {
+        return (inVideo(a, selVideo) ? 1 : 0) - (inVideo(b, selVideo) ? 1 : 0) ||
+               b.videos.length - a.videos.length;
+      }).slice(0, 8).forEach(function (p) {
+        list.push({ kind: inVideo(p, selVideo) ? "already" : "add", p: p, via: aliasHit(p, q) });
       });
-      var nu = ac.querySelector("[data-new]");
-      if (nu) nu.onclick = function () { addToSquad(inp.value.trim()); };
+      if (!playerByName(inp.value.trim())) {
+        list.push({ kind: "new" });
+        list.push({ kind: "asalias" });
+      }
+      return list;
     }
+
+    function label(r) {
+      var q = norm(inp.value), typed = esc(inp.value.trim());
+      if (r.kind === "cancel") return "<span style='color:var(--ink-dim)'>\u2190 vazge\u00e7</span>";
+      if (r.kind === "new") {
+        return "<span class='new'>+ \u201c" + typed + "\u201d ad\u0131nda yeni oyuncu a\u00e7</span>";
+      }
+      if (r.kind === "asalias") {
+        return "<span style='color:#7ea6ff'>\u21b3 \u201c" + typed +
+          "\u201d zaten tan\u0131d\u0131\u011f\u0131m birinin eski ad\u0131 \u2192 kim oldu\u011funu se\u00e7</span>";
+      }
+      var p = r.p;
+      var via = (r.via && norm(p.name).indexOf(q) === -1)
+        ? "<span style='color:var(--ink-dim);font-size:11.5px'>\u2190 " + esc(r.via) + "</span>" : "";
+      var tail = r.kind === "already"
+        ? "<span style='margin-left:auto;color:#8bd450;font-size:11.5px'>zaten eklendi \u2713</span>"
+        : "<span style='margin-left:auto;color:var(--ink-dim);font-size:11.5px'>" +
+          p.videos.length + " video</span>";
+      return "<span class='swatch' style='display:inline-block;width:9px;height:9px;" +
+        "border-radius:50%;background:" + clanColor(p.clan) + "'></span>" +
+        esc(p.name) + " " + via + tail;
+    }
+
+    function draw() {
+      var list = rows();
+      ac.innerHTML = list.map(function (r, i) {
+        return "<div data-i='" + i + "'" + (i === acIndex ? " class='sel'" : "") +
+          (r.kind === "already" ? " style='opacity:.62'" : "") + ">" + label(r) + "</div>";
+      }).join("");
+      ac.hidden = !list.length;
+      ac.querySelectorAll("[data-i]").forEach(function (el) {
+        // mousedown: input blur olup liste kapanmadan secim yapilsin
+        el.onmousedown = function (e) { e.preventDefault(); choose(list[+el.getAttribute("data-i")]); };
+      });
+      if (hint) {
+        hint.innerHTML = aliasPending
+          ? "\u201c<b>" + esc(aliasPending) + "</b>\u201d kimin eski ad\u0131? A\u015fa\u011f\u0131dan se\u00e7 \u2014 o ki\u015fiye eski ad olarak eklenir ve kadroya al\u0131n\u0131r."
+          : "";
+        hint.hidden = !aliasPending;
+      }
+      inp.classList.toggle("alias-mode", !!aliasPending);
+    }
+
+    function choose(r) {
+      if (!r) return;
+      if (r.kind === "cancel") {
+        aliasPending = null; inp.value = ""; acIndex = -1; draw(); inp.focus(); return;
+      }
+      if (r.kind === "new") { acIndex = -1; addToSquad(inp.value.trim()); return; }
+      if (r.kind === "asalias") {
+        aliasPending = inp.value.trim();
+        inp.value = ""; acIndex = -1;
+        draw(); inp.focus();
+        return;
+      }
+      if (r.kind === "already") {
+        toast("\u201c" + r.p.name + "\u201d bu videoya zaten eklenmi\u015f");
+        return;
+      }
+      if (r.kind === "alias") { attachAlias(r.p, aliasPending); return; }
+      acIndex = -1;
+      addToSquad(r.p.name);
+    }
+
     inp.oninput = function () { acIndex = -1; draw(); };
+    inp.onfocus = function () { draw(); };
     inp.onkeydown = function (e) {
-      var opts = options(), max = opts.length + (inp.value.trim() && !playerByName(inp.value.trim()) ? 1 : 0);
-      if (e.key === "ArrowDown") { e.preventDefault(); acIndex = Math.min(acIndex + 1, max - 1); draw(); }
+      var list = rows();
+      if (e.key === "ArrowDown") { e.preventDefault(); acIndex = Math.min(acIndex + 1, list.length - 1); draw(); }
       else if (e.key === "ArrowUp") { e.preventDefault(); acIndex = Math.max(acIndex - 1, -1); draw(); }
-      else if (e.key === "Escape") { ac.hidden = true; acIndex = -1; }
-      else if (e.key === "Enter") {
+      else if (e.key === "Escape") {
+        if (aliasPending) { aliasPending = null; inp.value = ""; draw(); }
+        else { ac.hidden = true; }
+        acIndex = -1;
+      } else if (e.key === "Enter") {
         e.preventDefault();
-        var name = (acIndex >= 0 && acIndex < opts.length) ? opts[acIndex].name : inp.value.trim();
-        if (name) { acIndex = -1; addToSquad(name); }
+        if (acIndex >= 0 && acIndex < list.length) { choose(list[acIndex]); return; }
+        if (aliasPending) {
+          if (list.length && list[0].kind === "alias") choose(list[0]);
+          return;
+        }
+        var v = inp.value.trim();
+        if (v) { acIndex = -1; addToSquad(v); }
       }
     };
-    inp.onblur = function () { setTimeout(function () { ac.hidden = true; }, 160); };
+    inp.onblur = function () {
+      setTimeout(function () { if (!aliasPending) ac.hidden = true; }, 160);
+    };
+    draw();
   }
+
+  // Yazilan adi mevcut bir oyuncunun eski adi olarak baglar ve kadroya alir.
+  function attachAlias(p, name) {
+    var owner = playerByName(name);
+    if (owner && owner !== p) {
+      toast("\u201c" + name + "\u201d zaten " + owner.name + " i\u00e7in kullan\u0131l\u0131yor", "bad");
+      return;
+    }
+    p.aliases = parseAliases((p.aliases || []).concat([name]).join(", "), p.name);
+    if (!inVideo(p, selVideo)) p.videos.push(selVideo);
+    aliasPending = null;
+    persist(); renderAll();
+    toast("\u201c" + name + "\u201d art\u0131k " + p.name + " ki\u015fisinin eski ad\u0131 \u2014 kadroya eklendi", "good");
+  }
+
 
   $("r-newvideo").onclick = function () { showTab("videos"); $("v-url").focus(); };
 

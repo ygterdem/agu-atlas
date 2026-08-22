@@ -66,7 +66,7 @@ Kod yazmadan, form doldurarak veri girersin:
 
 | Sekme | Ne yapar |
 |---|---|
-| **Kadro** | Asıl kullanacağın ekran. Soldan videoyu seç, sağda o videoda oynayanları yaz. İsmi yazıp Enter'a bas; oyuncu yoksa anında oluşturulur. Sık oynayanlar “Hızlı ekle” olarak tek tıkla eklenir. |
+| **Kadro** | Asıl kullanacağın ekran. Soldan videoyu seç, sağda o videoda oynayanları yaz. İsmi yazıp Enter'a bas; oyuncu yoksa anında oluşturulur. Sık oynayanlar “Hızlı ekle” olarak tek tıkla eklenir. Listede zaten eklediğin kişiler “zaten eklendi ✓” diye görünür, eski adlar da aranır, bilinmeyen bir adı mevcut birinin eski adı olarak bağlayabilirsin. |
 | **Videolar** | YouTube linkini yapıştır → başlık otomatik çekilir, video id'si linkten üretilir. |
 | **Oyuncular** | İsim, **diğer adlar**, klan, kanal linki, not düzenleme. Video sayısı kadrodan gelir, elle girilmez. |
 | **Klanlar** | Etiket, ad, renk. Etiketi değiştirirsen o klandaki oyuncular otomatik taşınır. Tanımsız etiket kalmışsa tek tıkla düzeltir. |
