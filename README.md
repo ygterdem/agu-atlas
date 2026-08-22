@@ -154,6 +154,22 @@ yazsan bile aynı kişiyi bulur, ikinci bir kayıt açmaz.
 
 ---
 
+### Ortadaki logo
+
+Merkezdeki baloncuğun içinde `assets/Aghustos Logo Black.png` görünür.
+Değiştirmek için ya dosyanın üzerine yaz ya da `data/atlas-data.js` içinde
+`center` bölümüne kendi yolunu ver:
+
+```js
+center: { name: "Aghustos", logo: "assets/yeni-logo.png", ... }
+```
+
+Görsel daire biçiminde kırpılır; kenarda ince bir renkli halka kalır.
+Kare ve ortalanmış bir logo en iyi sonucu verir. Dosya bulunamazsa
+baloncuk düz renk olarak görünür.
+
+---
+
 ## 📁 Dosyalar
 
 ```
@@ -162,6 +178,7 @@ index.html            harita sayfası
 editor.html           veri düzenleyici
 assets/style.css      görünüm
 assets/atlas.js       harita motoru (dokunma gerekmez)
+assets/*.png          ortadaki logo
 assets/editor.css     düzenleyici görünümü
 assets/editor.js      düzenleyici motoru
 data/atlas-data.js    ← VERİ (düzenleyicinin ürettiği dosya)

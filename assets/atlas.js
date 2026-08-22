@@ -19,6 +19,7 @@
     R_MIN: 10,         // en az videoda çıkanın baloncuk yarıçapı
     R_MAX: 34,         // en çok videoda çıkanın baloncuk yarıçapı
     R_CENTER: 46,      // merkez baloncuk yarıçapı
+    CENTER_LOGO: "assets/Aghustos Logo Black.png",  // ortadaki logo (data.center.logo ile değiştirilebilir)
     LABEL_MIN_R: 13,   // bu yarıçapın altındakilerin ismi normalde gizli
     PUBLIC_GROUP_MIN: 2, // kaç ayrı videoda birlikte oynayanlar aynı grup sayılsın
     PALETTE: ["#ffd166", "#ff5c8a", "#5cc8ff", "#8bd450", "#b18cff",
@@ -400,6 +401,24 @@
     .attr("stroke", function (d) { return d.isCenter ? "#fff" : "rgba(8,10,18,.55)"; })
     .attr("stroke-width", function (d) { return d.isCenter ? 3 : 1.5; })
     .attr("filter", function (d) { return d.isCenter ? "url(#glow)" : null; });
+
+  // Ortadaki baloncuğun içine logo. Daire biçiminde kırpılıyor; kenarda
+  // ince bir sarı halka kalsın diye biraz küçük çiziliyor.
+  (function () {
+    var logo = (DATA.center && DATA.center.logo) || CFG.CENTER_LOGO;
+    if (!logo) return;
+    var rr = CFG.R_CENTER - 4;
+    defs.append("clipPath").attr("id", "hub-clip")
+      .append("circle").attr("r", rr);
+    node.filter(function (d) { return d.isCenter; })
+      .append("image")
+      .attr("href", encodeURI(logo))
+      .attr("x", -rr).attr("y", -rr)
+      .attr("width", rr * 2).attr("height", rr * 2)
+      .attr("clip-path", "url(#hub-clip)")
+      .attr("preserveAspectRatio", "xMidYMid slice")
+      .attr("pointer-events", "none");
+  })();
 
   node.append("text")
     .attr("text-anchor", "middle")
