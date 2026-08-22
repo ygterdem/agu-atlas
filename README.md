@@ -52,7 +52,7 @@ Kod yazmadan, form doldurarak veri girersin:
 |---|---|
 | **Kadro** | Asıl kullanacağın ekran. Soldan videoyu seç, sağda o videoda oynayanları yaz. İsmi yazıp Enter'a bas; oyuncu yoksa anında oluşturulur. Sık oynayanlar “Hızlı ekle” olarak tek tıkla eklenir. |
 | **Videolar** | YouTube linkini yapıştır → başlık otomatik çekilir, video id'si linkten üretilir. |
-| **Oyuncular** | İsim, klan, kanal linki, not düzenleme. Video sayısı kadrodan gelir, elle girilmez. |
+| **Oyuncular** | İsim, **diğer adlar**, klan, kanal linki, not düzenleme. Video sayısı kadrodan gelir, elle girilmez. |
 | **Klanlar** | Etiket, ad, renk. Etiketi değiştirirsen o klandaki oyuncular otomatik taşınır. Tanımsız etiket kalmışsa tek tıkla düzeltir. |
 | **Ayarlar** | Merkezdeki (senin) isim, alt başlık, renk, kanal linki. |
 | **Kaydet** | Hataları listeler, dosyayı üretir. |
@@ -88,12 +88,19 @@ kadar site değişmez.
 **`players`** — oyuncular
 
 ```js
-{ name: "Kerem", clan: "TPS", videos: ["v1","v3","v4"], link: "", note: "" }
+{ name: "Kerem", clan: "TPS", videos: ["v1","v3","v4"],
+  aliases: ["eski_kerem", "KRM"], link: "", note: "" }
 ```
 
 `videos` → oyuncunun göründüğü video id'leri.
 **Boyut ve merkeze yakınlık bu listenin uzunluğundan otomatik hesaplanır.**
 Klanı yoksa `clan: ""` bırak.
+
+`aliases` → **diğer adları** (isteğe bağlı). Biri zaman içinde ismini
+değiştirdiyse eski adlarını buraya yaz. O kişi haritada tek baloncuk olarak
+kalır; arama kutusunda eski adıyla da bulunur ve detay panelinde
+“Diğer adları” olarak listelenir. Düzenleyicideki kadro girişinde eski adı
+yazsan bile aynı kişiyi bulur, ikinci bir kayıt açmaz.
 
 > En sık yapılan hata: `players` içindeki `clan` değerinin `clans` içindeki
 > hiçbir `tag` ile eşleşmemesi. O oyuncular sessizce gri “Bağımsız” olur.

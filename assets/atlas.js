@@ -66,6 +66,7 @@
     return {
       id: "p" + i,
       name: p.name,
+      aliases: (p.aliases || []).map(function (a) { return String(a).trim(); }).filter(Boolean),
       clan: tag,
       videos: vids,
       missing: (p.videos || []).length - vids.length,
@@ -127,7 +128,8 @@
     p.tx = Math.cos(p.angle) * p.home;
     p.ty = Math.sin(p.angle) * p.home;
     p.x = p.tx; p.y = p.ty;
-    p.search = norm(p.name) + " " + norm(c.name) + " " + norm(c.tag);
+    p.search = [norm(p.name), norm(c.name), norm(c.tag)]
+      .concat(p.aliases.map(norm)).join(" ");
   });
 
   var nodes = [center].concat(players);
@@ -362,6 +364,10 @@
       tip.innerHTML =
         "<div class='tt-clan' style='color:" + d.color + "'>" + esc(d.clanName) + "</div>" +
         "<b>" + esc(d.name) + "</b>" +
+        (d.aliases.length
+          ? "<div class='tt-meta'>diğer adları: " +
+            esc(d.aliases.slice(0, 3).join(", ")) + (d.aliases.length > 3 ? " …" : "") + "</div>"
+          : "") +
         "<div class='tt-meta'>" + d.count + " videoda birlikte oynadık</div>";
     }
     tip.hidden = false;
@@ -415,6 +421,13 @@
       "<div class='p-stat'><b>%" + share + "</b><span>Videolarımın</span></div>" +
       "<div class='p-stat'><b>" + (mates.length + 1) + "</b><span>Klan üyesi</span></div>" +
       "</div>";
+
+    if (d.aliases.length) {
+      h += "<div class='p-sec'>Diğer adları</div><div class='chips'>" +
+        d.aliases.map(function (a) {
+          return "<span class='chip' style='cursor:default'>" + esc(a) + "</span>";
+        }).join("") + "</div>";
+    }
 
     h += "<div class='p-sec'>Birlikte oynadığımız videolar</div>" + vids.map(videoRow).join("");
 

@@ -11,6 +11,7 @@
   var M = null;             // model
   var selVideo = null;      // kadro ekranında seçili video id
   var acIndex = -1;         // autocomplete'te seçili satır
+  var NL = String.fromCharCode(10);   // confirm() metinlerinde satır sonu
 
   // ------------------------------------------------------------ yardımcılar
   function $(id) { return document.getElementById(id); }
@@ -69,6 +70,7 @@
     m.players = (d.players || []).map(function (p) {
       return {
         name: p.name || "", clan: String(p.clan || ""),
+        aliases: (p.aliases || []).map(function (a) { return String(a).trim(); }).filter(Boolean),
         videos: (p.videos || []).map(String),
         link: p.link || "", note: p.note || ""
       };
@@ -96,10 +98,37 @@
     for (var i = 0; i < M.videos.length; i++) if (M.videos[i].id === id) return M.videos[i];
     return null;
   }
+  // Bir ismi ya da eski adı verilen oyuncuyu bulur.
   function playerByName(n) {
     var k = norm(n);
-    for (var i = 0; i < M.players.length; i++) if (norm(M.players[i].name) === k) return M.players[i];
+    if (!k) return null;
+    var i, j;
+    for (i = 0; i < M.players.length; i++) if (norm(M.players[i].name) === k) return M.players[i];
+    for (i = 0; i < M.players.length; i++) {
+      var al = M.players[i].aliases || [];
+      for (j = 0; j < al.length; j++) if (norm(al[j]) === k) return M.players[i];
+    }
     return null;
+  }
+  // Girilen ad, oyuncunun asıl adı mı yoksa eski adlarından biri mi?
+  function matchedAlias(p, n) {
+    var k = norm(n);
+    if (norm(p.name) === k) return null;
+    var al = p.aliases || [];
+    for (var i = 0; i < al.length; i++) if (norm(al[i]) === k) return al[i];
+    return null;
+  }
+  function parseAliases(str, self) {
+    var seen = {}, out = [];
+    String(str || "").split(",").forEach(function (a) {
+      a = a.trim();
+      if (!a) return;
+      var k = norm(a);
+      if (self && k === norm(self)) return;      // kendi adını diğer ad olarak tutma
+      if (seen[k]) return;
+      seen[k] = 1; out.push(a);
+    });
+    return out;
   }
   function inVideo(p, vid) { return p.videos.indexOf(vid) !== -1; }
   function squadOf(vid) { return M.players.filter(function (p) { return inVideo(p, vid); }); }
@@ -195,8 +224,13 @@
     var squad = squadOf(selVideo).sort(function (a, b) { return a.name.localeCompare(b.name, "tr"); });
     $("r-squad").innerHTML = squad.length
       ? squad.map(function (p) {
-          return "<span class='pchip'><span class='swatch' style='background:" + clanColor(p.clan) + "'></span>" +
-            esc(p.name) + "<button data-rm='" + esc(p.name) + "' title='Kadrodan çıkar'>×</button></span>";
+          var al = (p.aliases || []).length
+            ? " title='Diğer adları: " + esc(p.aliases.join(", ")) + "'" : "";
+          return "<span class='pchip'" + al + "><span class='swatch' style='background:" +
+            clanColor(p.clan) + "'></span>" + esc(p.name) +
+            ((p.aliases || []).length ? "<span style='color:var(--ink-dim);font-size:11px'>+" +
+              p.aliases.length + "</span>" : "") +
+            "<button data-rm='" + esc(p.name) + "' title='Kadrodan çıkar'>×</button></span>";
         }).join("")
       : "<span style='font-size:12.5px;color:var(--ink-dim);align-self:center'>Henüz kimse yok.</span>";
 
@@ -228,9 +262,12 @@
     if (!name) return;
     var p = playerByName(name);
     if (!p) {
-      p = { name: name, clan: "", videos: [], link: "", note: "" };
+      p = { name: name, clan: "", aliases: [], videos: [], link: "", note: "" };
       M.players.push(p);
       toast("“" + name + "” oluşturuldu", "good");
+    } else {
+      var via = matchedAlias(p, name);
+      if (via) toast("“" + via + "” = " + p.name + " olarak eklendi", "good");
     }
     if (!inVideo(p, selVideo)) p.videos.push(selVideo);
     persist(); renderAll();
@@ -243,16 +280,22 @@
       var q = norm(inp.value);
       if (!q) return [];
       return M.players.filter(function (p) {
-        return !inVideo(p, selVideo) && norm(p.name).indexOf(q) !== -1;
+        if (inVideo(p, selVideo)) return false;
+        if (norm(p.name).indexOf(q) !== -1) return true;
+        return (p.aliases || []).some(function (a) { return norm(a).indexOf(q) !== -1; });
       }).slice(0, 8);
     }
     function draw() {
       var opts = options(), q = inp.value.trim();
       var exact = !!playerByName(q);
+      var qn = norm(inp.value);
       var html = opts.map(function (p, i) {
+        var hit = (p.aliases || []).filter(function (a) { return norm(a).indexOf(qn) !== -1; })[0];
+        var via = (norm(p.name).indexOf(qn) === -1 && hit)
+          ? "<span style='color:var(--ink-dim);font-size:11.5px'>← " + esc(hit) + "</span>" : "";
         return "<div data-i='" + i + "'" + (i === acIndex ? " class='sel'" : "") + ">" +
           "<span class='swatch' style='display:inline-block;width:9px;height:9px;border-radius:50%;background:" +
-          clanColor(p.clan) + "'></span>" + esc(p.name) +
+          clanColor(p.clan) + "'></span>" + esc(p.name) + " " + via +
           "<span style='margin-left:auto;color:var(--ink-dim);font-size:11.5px'>" + p.videos.length + " video</span></div>";
       }).join("");
       if (q && !exact) {
@@ -376,7 +419,8 @@
     var name = $("p-name").value.trim();
     if (!name) { toast("İsim gerekli", "bad"); return; }
     if (playerByName(name)) { toast("Bu isimde bir oyuncu zaten var", "bad"); return; }
-    M.players.push({ name: name, clan: $("p-clan").value, videos: [], link: $("p-link").value.trim(), note: "" });
+    M.players.push({ name: name, clan: $("p-clan").value, aliases: [], videos: [],
+                     link: $("p-link").value.trim(), note: "" });
     persist();
     $("p-name").value = ""; $("p-link").value = "";
     renderAll(); toast("Oyuncu eklendi — kadro sekmesinden videolara ekle", "good");
@@ -390,17 +434,21 @@
       return b.videos.length - a.videos.length || a.name.localeCompare(b.name, "tr");
     });
     if (q) list = list.filter(function (p) {
-      return norm(p.name).indexOf(q) !== -1 || norm(clanName(p.clan)).indexOf(q) !== -1;
+      return norm(p.name).indexOf(q) !== -1 || norm(clanName(p.clan)).indexOf(q) !== -1 ||
+        (p.aliases || []).some(function (a) { return norm(a).indexOf(q) !== -1; });
     });
     if (!list.length) { box.innerHTML = "<div class='empty'>Oyuncu yok.</div>"; return; }
     box.innerHTML = "<table class='t'><thead><tr>" +
-      "<th style='min-width:150px'>İsim</th><th style='min-width:150px'>Klan</th>" +
-      "<th style='min-width:180px'>Kanal linki</th><th style='min-width:180px'>Not</th>" +
+      "<th style='min-width:140px'>İsim</th><th style='min-width:170px'>Diğer adlar</th>" +
+      "<th style='min-width:140px'>Klan</th>" +
+      "<th style='min-width:170px'>Kanal linki</th><th style='min-width:150px'>Not</th>" +
       "<th class='num'>Video</th><th></th></tr></thead><tbody>" +
       list.map(function (p, i) {
         var idx = M.players.indexOf(p);
         return "<tr data-i='" + idx + "'>" +
           "<td><input type='text' data-f='name' value='" + esc(p.name) + "'></td>" +
+          "<td><input type='text' data-f='aliases' value='" + esc((p.aliases || []).join(", ")) +
+            "' placeholder='eski adı, takma adı' title='Virgülle ayır'></td>" +
           "<td><select data-f='clan'>" + clanOptions(p.clan) + "</select></td>" +
           "<td><input type='url' data-f='link' value='" + esc(p.link) + "'></td>" +
           "<td><input type='text' data-f='note' value='" + esc(p.note) + "'></td>" +
@@ -417,8 +465,31 @@
             if (!val) { toast("İsim boş olamaz", "bad"); renderAll(); return; }
             var other = playerByName(val);
             if (other && other !== p) { toast("Bu isim zaten kullanılıyor", "bad"); renderAll(); return; }
+            var old = p.name;
+            p.name = val;
+            if (old && norm(old) !== norm(val) &&
+                confirm("İsim değişti." + NL + NL +
+                        "“" + old + "” eski ad olarak saklansın mı?" + NL +
+                        "Böylece eski adıyla arattığında da bulunur ve iki ayrı baloncuk oluşmaz.")) {
+              p.aliases = parseAliases((p.aliases || []).concat([old]).join(", "), val);
+              toast("“" + old + "” diğer adlara eklendi", "good");
+            } else {
+              p.aliases = parseAliases((p.aliases || []).join(", "), val);
+            }
+          } else if (f === "aliases") {
+            var next = parseAliases(val, p.name), clash = null;
+            next.forEach(function (a) {
+              var o = playerByName(a);
+              if (o && o !== p) clash = a;
+            });
+            if (clash) {
+              toast("“" + clash + "” zaten başka bir oyuncuya ait", "bad");
+              renderAll(); return;
+            }
+            p.aliases = next;
+          } else {
+            p[f] = val;
           }
-          p[f] = inp.value.trim();
           persist(); renderAll();
         };
       });
@@ -589,7 +660,15 @@
     M.players.forEach(function (p) {
       var k = norm(p.name);
       if (names[k]) out.push("Aynı isimde iki oyuncu: <b>" + esc(p.name) + "</b>");
-      names[k] = 1;
+      names[k] = p.name;
+      (p.aliases || []).forEach(function (a) {
+        var ak = norm(a);
+        if (names[ak] && names[ak] !== p.name) {
+          out.push("<b>" + esc(a) + "</b> hem <b>" + esc(names[ak]) + "</b> hem <b>" +
+            esc(p.name) + "</b> için kullanılmış — diğer adlar benzersiz olmalı.");
+        }
+        names[ak] = p.name;
+      });
       if (p.clan && !clanByTag(p.clan)) {
         out.push("<b>" + esc(p.name) + "</b> oyuncusu <b>" + esc(p.clan) +
           "</b> klanına bağlı ama böyle bir klan yok — haritada “Bağımsız” görünür.");
@@ -658,6 +737,7 @@
     L.push(M.players.map(function (p) {
       var s = "    { name: " + q(p.name) + ", clan: " + q(p.clan) +
         ", videos: [" + p.videos.map(q).join(", ") + "]";
+      if ((p.aliases || []).length) s += ", aliases: [" + p.aliases.map(q).join(", ") + "]";
       if (p.link) s += ", link: " + q(p.link);
       if (p.note) s += ", note: " + q(p.note);
       return s + " }";
