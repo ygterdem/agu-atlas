@@ -1,16 +1,12 @@
 /* =========================================================================
    AGHUSTOS'UN YOUTUBE ATLAS'I  —  VERİ DOSYASI
    -------------------------------------------------------------------------
-   Siteyi güncellemek için SADECE bu dosyayı düzenlemen yeterli.
-   Üç liste var: clans (klanlar), videos (videolar), players (oyuncular).
+   Bu dosya editor.html üzerinden üretildi. Elle de düzenleyebilirsin ama
+   düzenleyiciyi kullanmak daha güvenli: klan etiketlerini ve video
+   id'lerini kendisi tutarlı tutuyor.
 
-   KURAL 1 : Her oyuncunun "videos" listesi, o oyuncunun göründüğü video
-             id'lerini içerir. Kaç video varsa baloncuk o kadar BÜYÜK ve
-             merkeze o kadar YAKIN olur. (Otomatik hesaplanır.)
-   KURAL 2 : "clan" alanı, clans listesindeki bir "tag" ile aynı olmalı.
-             Klanı yoksa: clan: "" bırak (Bağımsız olarak gösterilir).
-   KURAL 3 : videos listesindeki "id" değerlerini kısa ve benzersiz tut
-             (v1, v2, gta-01 ... fark etmez). YouTube linkini "url" e yaz.
+   Baloncuk boyutu ve merkeze yakınlık, oyuncunun videos listesinin
+   uzunluğundan otomatik hesaplanır — elle sayı girilmez.
    ========================================================================= */
 
 window.ATLAS_DATA = {
@@ -20,62 +16,155 @@ window.ATLAS_DATA = {
     name: "Aghustos",
     subtitle: "Youtube Atlas'ı",
     color: "#ffd166",
-    channel: "https://www.youtube.com/@aghustos"   // kendi kanal linkin
+    channel: "https://www.youtube.com/@aghustos"
   },
 
-  /* ---------------- KLANLAR ----------------
-     tag   : kısa etiket (oyuncularda bunu kullanacaksın)
-     name  : ekranda görünen tam ad
-     color : baloncuk rengi (istersen değiştir, boş bırakırsan otomatik atanır)
-  */
+  /* ---------------- KLANLAR ---------------- */
   clans: [
-    { tag: "AGU",  name: "Aghustos Ekibi",  color: "#ffd166" },
-    { tag: "KRT",  name: "Kurtlar Vadisi",  color: "#ff5c8a" },
-    { tag: "NOVA", name: "Nova Clan",       color: "#5cc8ff" },
-    { tag: "TR",   name: "TR Squad",        color: "#8bd450" },
-    { tag: "GEZ",  name: "Gezginler",       color: "#b18cff" }
+    { tag: "[TPS]", name: "The Perfect Squad", color: "#ffffff" },
+    { tag: "IMBZ", name: "IMBZ", color: "#ff5c8a" },
+    { tag: "K2", name: "K2", color: "#5cc8ff" },
+    { tag: "[NLD]", name: "[NLD]", color: "#5cc8ff" },
+    { tag: "Zero", name: "Zero", color: "#b18cff" },
+    { tag: "A's", name: "Ace", color: "#ff9f45" },
+    { tag: "[ISO]", name: "ISO", color: "#4ecdc4" },
+    { tag: "[GT]", name: "GT", color: "#e05be0" },
+    { tag: "[EX-TPS]", name: "The Perfect Squad Eski Oyuncuları", color: "#ffffff" },
+    { tag: "[ÇB]", name: "Çay Bahçesi", color: "#017624" },
+    { tag: "JGR-R", name: "Jager Recruit?", color: "#ffd166" },
+    { tag: "{SEX}", name: "{SEX}", color: "#ff8000" }
   ],
 
-  /* ---------------- VIDEOLAR ----------------
-     id    : benzersiz kısa kod (oyuncularda bunu kullanacaksın)
-     title : video başlığı
-     url   : youtube linki
-     date  : YYYY-AA-GG (isteğe bağlı, sıralama için)
-     game  : oyun adı (isteğe bağlı)
-  */
+  /* ---------------- VIDEOLAR ---------------- */
   videos: [
-    { id: "v1", title: "4 Kişilik Squad ile Efsane Tavuk",       url: "https://youtube.com/watch?v=XXXXXXXX", date: "2025-01-12", game: "PUBG"     },
-    { id: "v2", title: "Klan Savaşı Geri Döndü",                  url: "https://youtube.com/watch?v=XXXXXXXX", date: "2025-02-03", game: "PUBG"     },
-    { id: "v3", title: "Rastgele Takım ile 20 Kill",              url: "https://youtube.com/watch?v=XXXXXXXX", date: "2025-02-20", game: "Warzone"  },
-    { id: "v4", title: "Gece Yarısı Custom Maç",                  url: "https://youtube.com/watch?v=XXXXXXXX", date: "2025-03-08", game: "Warzone"  },
-    { id: "v5", title: "Abonelerle Oynadım #1",                   url: "https://youtube.com/watch?v=XXXXXXXX", date: "2025-03-29", game: "Valorant" },
-    { id: "v6", title: "Turnuva Finali",                          url: "https://youtube.com/watch?v=XXXXXXXX", date: "2025-04-17", game: "Valorant" },
-    { id: "v7", title: "Yeni Sezon İlk Maçlar",                   url: "https://youtube.com/watch?v=XXXXXXXX", date: "2025-05-02", game: "Valorant" }
+    { id: "v1", title: "Squad # 1 - Zorunlu Kumandanlık - Türkçe - Y.A.K", url: "https://youtu.be/l64EsmZoNXg", date: "2022-10-17", game: "Squad" },
+    { id: "v2", title: "Squad # 2 - Potansiyeli Yüksek Seri - Türkçe - Y.A.K", url: "https://youtu.be/h0HFmaxSYQg", date: "2022-10-23", game: "Squad" },
+    { id: "v3", title: "Cota Tank Eventi SQUAD - Warthunder 3. Şahıs Modu.", url: "https://youtu.be/HKxK_m_C1f4", date: "2024-03-25", game: "Squad" },
+    { id: "v4", title: "TPS TANK Eğlence Oyunları", url: "https://youtu.be/HKxK_m_C1f4", date: "2024-03-31", game: "Squad" },
+    { id: "g15f_uckJdE", title: "TPS 1. GELENEKSEL TANK TURNUVASI 1v1 #squadgame  #squad #theperfectsquad #tps", url: "https://youtu.be/g15f_uckJdE", date: "2024-04-02", game: "Squad" },
+    { id: "MlPdW75p-9E", title: "SL'lik zor be | SQUAD | life @ çaybahçesi", url: "https://youtu.be/MlPdW75p-9E", date: "2025-05-04", game: "Squad" },
+    { id: "X4ZlfRiQwX4", title: "Narva köprüsü taştan | SQUAD | life @ KAOS", url: "https://youtu.be/X4ZlfRiQwX4", date: "2025-05-06", game: "Squad" },
+    { id: "rHeCJ88wHuA", title: "ZTZ VS HERKES | SQUAD | life @ KAOS", url: "https://youtu.be/rHeCJ88wHuA", date: "2025-05-08", game: "Squad" },
+    { id: "kaZ2ylrGSug", title: "Commander Farkı Part-1 | 0 Kill SQUAD | life @ çaybahçesi", url: "https://youtu.be/kaZ2ylrGSug", date: "2025-05-08", game: "Squad" },
+    { id: "EGN4bL2DTuY", title: "Ağustos bu arada", url: "https://youtu.be/EGN4bL2DTuY", date: "2025-05-12", game: "Squad" },
+    { id: "UA_OFXeQgTU", title: "Adamlar Yamuldu | SQUAD | life @ kaos", url: "https://youtu.be/UA_OFXeQgTU", date: "2025-05-12", game: "Squad" },
+    { id: "clrtzi99H1g", title: "Helikopteri Rehin Aldık | SQUAD | life @ çaybahçesi", url: "https://youtu.be/clrtzi99H1g", date: "2025-05-16", game: "Squad" },
+    { id: "uJiD411WWBQ", title: "Efektif T-62 | #squad  | life @ çaybahçesi", url: "https://youtu.be/uJiD411WWBQ", date: "2025-05-17", game: "Squad" },
+    { id: "Suomz9uE49s", title: "ZORLU GÖREV | SQUAD | life @ çaybahçesi", url: "https://youtu.be/Suomz9uE49s", date: "2025-05-19", game: "Squad" },
+    { id: "185A4JmaJRU", title: "Eğitici Kavimler Göçü | SQUAD | life @ çaybahçesi", url: "https://youtu.be/185A4JmaJRU", date: "2025-05-20", game: "Squad" }
   ],
 
-  /* ---------------- OYUNCULAR ----------------
-     name  : ekranda görünen isim
-     clan  : clans listesindeki tag   ("" = bağımsız)
-     videos: göründüğü video id'leri
-     link  : kanal / sosyal medya linki (isteğe bağlı)
-     note  : kısa not (isteğe bağlı)
-  */
+  /* ---------------- OYUNCULAR ---------------- */
   players: [
-    { name: "Mehmet",    clan: "AGU",  videos: ["v1","v2","v3","v4","v5","v6"], link: "", note: "En çok birlikte oynadığım isim." },
-    { name: "Burak",     clan: "AGU",  videos: ["v1","v2","v4","v6"],           link: "" },
-    { name: "Deniz",     clan: "AGU",  videos: ["v2","v5"],                     link: "" },
-    { name: "Kerem",     clan: "KRT",  videos: ["v1","v3","v4","v7"],           link: "" },
-    { name: "Selin",     clan: "KRT",  videos: ["v3","v4"],                     link: "" },
-    { name: "Emre",      clan: "KRT",  videos: ["v4"],                          link: "" },
-    { name: "Arda",      clan: "NOVA", videos: ["v5","v6","v7"],                link: "" },
-    { name: "Zeynep",    clan: "NOVA", videos: ["v6","v7"],                     link: "" },
-    { name: "Can",       clan: "NOVA", videos: ["v6"],                          link: "" },
-    { name: "Berk",      clan: "TR",   videos: ["v2","v3"],                     link: "" },
-    { name: "Efe",       clan: "TR",   videos: ["v3"],                          link: "" },
-    { name: "Yusuf",     clan: "TR",   videos: ["v7"],                          link: "" },
-    { name: "Melis",     clan: "GEZ",  videos: ["v5","v7"],                     link: "" },
-    { name: "Onur",      clan: "GEZ",  videos: ["v5"],                          link: "" },
-    { name: "Kaan",      clan: "",     videos: ["v1"],                          link: "", note: "Tek videoda misafir oldu." },
-    { name: "Ayşe",      clan: "",     videos: ["v6"],                          link: "" }
+    { name: "*REAPER*", clan: "IMBZ", videos: ["v1"] },
+    { name: "KairosVoid", clan: "IMBZ", videos: ["v1"] },
+    { name: "FURQ4N", clan: "", videos: ["v1"] },
+    { name: "505saeeed", clan: "", videos: ["v1"] },
+    { name: "Eidam", clan: "", videos: ["v1"] },
+    { name: "danielsonmichael3", clan: "", videos: ["v1"] },
+    { name: "BANANA Infinity", clan: "[NLD]", videos: ["v1"] },
+    { name: "Trotsky", clan: "", videos: ["v1"] },
+    { name: "sindrehp", clan: "", videos: ["v1"] },
+    { name: "ksathryas", clan: "", videos: ["v1"] },
+    { name: "Efe", clan: "", videos: ["v1"] },
+    { name: "^tMs'", clan: "", videos: ["v1"] },
+    { name: "_Lofty_", clan: "", videos: ["v1"] },
+    { name: "pohjanpoika", clan: "", videos: ["v1"] },
+    { name: "kaislikko", clan: "", videos: ["v1"] },
+    { name: "Ayşe", clan: "", videos: [] },
+    { name: "Shadow", clan: "Zero", videos: ["v1"] },
+    { name: "Veiakas", clan: "A's", videos: ["v1"] },
+    { name: "umaykutan", clan: "", videos: ["v1"] },
+    { name: "Fuzzyduc [sp]", clan: "", videos: ["v1"] },
+    { name: "im DEAD", clan: "", videos: ["v1"] },
+    { name: "Humunga_Dunga", clan: "", videos: ["v1"] },
+    { name: "touchedsphagett", clan: "", videos: ["v2"] },
+    { name: "T2İsaın", clan: "", videos: ["v2"] },
+    { name: "HORNYFuggjoss", clan: "", videos: ["v2"] },
+    { name: "Shake N Bake", clan: "", videos: ["v2"] },
+    { name: "Recker", clan: "[ISO]", videos: ["v2"] },
+    { name: "Dod", clan: "", videos: ["v2"] },
+    { name: "- Platoon -", clan: "", videos: ["v2"] },
+    { name: "MoOnGo", clan: "", videos: ["v2"] },
+    { name: "MC Stompın", clan: "", videos: ["v2"] },
+    { name: "DeusMortem", clan: "", videos: ["v2"] },
+    { name: "Sam", clan: "", videos: ["v2"] },
+    { name: "Xx-1-0 cry no more", clan: "", videos: ["v2"] },
+    { name: "Dark Master", clan: "", videos: ["v2"] },
+    { name: "StrozPrawa997", clan: "", videos: ["v2"] },
+    { name: "Grosbolos", clan: "", videos: ["v2"] },
+    { name: "42-inch TV", clan: "[GT]", videos: ["v2"] },
+    { name: "LogicTea", clan: "", videos: ["v2"] },
+    { name: "IVAN", clan: "", videos: ["v2"] },
+    { name: "IndianBoi", clan: "", videos: ["v2"] },
+    { name: "VITALY", clan: "", videos: ["v2"] },
+    { name: "Bel Prince of...", clan: "", videos: ["v2"] },
+    { name: "Cpt. Dildo", clan: "", videos: ["v2"] },
+    { name: "Bob Marley Yu...", clan: "", videos: ["v2"] },
+    { name: "Acidbyte", clan: "", videos: ["v2"] },
+    { name: "Skallid", clan: "", videos: ["v2"] },
+    { name: "yazombek100", clan: "", videos: ["v2"] },
+    { name: "Walker", clan: "", videos: ["v2"] },
+    { name: "1shot", clan: "", videos: ["v2"] },
+    { name: "Dayvon Bennett", clan: "", videos: ["v2"] },
+    { name: "tom_play_", clan: "", videos: ["v2"] },
+    { name: "Didaktik", clan: "[EX-TPS]", videos: ["v3", "v4", "g15f_uckJdE"], aliases: ["Mehmet"] },
+    { name: "E L M O", clan: "[EX-TPS]", videos: ["v3", "g15f_uckJdE"] },
+    { name: "FrostyArthas", clan: "", videos: ["v3"] },
+    { name: "HardROOQ", clan: "", videos: ["v3"] },
+    { name: "SworD", clan: "[EX-TPS]", videos: ["v4"] },
+    { name: "\"Bismarck", clan: "[EX-TPS]", videos: ["v4", "g15f_uckJdE"] },
+    { name: "Cük-ületta", clan: "[EX-TPS]", videos: ["g15f_uckJdE"] },
+    { name: "FULL METAL", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "GOGOX", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "veil", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "Savo", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "Emlol", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "LıghtSelami", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "Militarism", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "Nameless07", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "Emostar32", clan: "", videos: ["MlPdW75p-9E"] },
+    { name: "Stromtrooper", clan: "", videos: ["X4ZlfRiQwX4"] },
+    { name: "Mr.Steven", clan: "", videos: ["X4ZlfRiQwX4"] },
+    { name: "Guenhyvar", clan: "", videos: ["X4ZlfRiQwX4"] },
+    { name: "Ryax", clan: "", videos: ["X4ZlfRiQwX4"] },
+    { name: "tom1n", clan: "", videos: ["X4ZlfRiQwX4", "kaZ2ylrGSug"] },
+    { name: "SMIPPI", clan: "", videos: ["X4ZlfRiQwX4"] },
+    { name: "вкусно-и-TOчKa", clan: "", videos: ["X4ZlfRiQwX4"] },
+    { name: "Kur4", clan: "", videos: ["X4ZlfRiQwX4"] },
+    { name: "(_Gargantua_)", clan: "[EX-TPS]", videos: ["rHeCJ88wHuA"] },
+    { name: "PHAGE", clan: "[EX-TPS]", videos: ["rHeCJ88wHuA"] },
+    { name: "Nes", clan: "", videos: ["rHeCJ88wHuA"] },
+    { name: "Kira Kun", clan: "", videos: ["kaZ2ylrGSug"] },
+    { name: "BahtıSPiyadeEMİR", clan: "", videos: ["kaZ2ylrGSug"] },
+    { name: "Emirhan", clan: "", videos: ["kaZ2ylrGSug"] },
+    { name: "Swordrex", clan: "", videos: ["kaZ2ylrGSug"] },
+    { name: "UniVersaL", clan: "[EX-TPS]", videos: ["kaZ2ylrGSug"] },
+    { name: "yavuzkbey3", clan: "", videos: ["kaZ2ylrGSug"] },
+    { name: "Leonidass", clan: "[ÇB]", videos: ["kaZ2ylrGSug"] },
+    { name: "Moe Lester", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "Kova Prostat", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "AlpSavage", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "Burak", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "Ravens x goktu", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "ugrustrl", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "Frank Castle", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "Absolut", clan: "", videos: ["EGN4bL2DTuY", "UA_OFXeQgTU"] },
+    { name: "moe", clan: "", videos: [] },
+    { name: "VIPER", clan: "", videos: ["clrtzi99H1g", "185A4JmaJRU"] },
+    { name: "TR-Efdal", clan: "", videos: ["clrtzi99H1g"] },
+    { name: "zgrpak", clan: "", videos: ["clrtzi99H1g", "185A4JmaJRU"] },
+    { name: "Nizarss", clan: "[TPS]", videos: ["clrtzi99H1g", "185A4JmaJRU"] },
+    { name: "slow1", clan: "", videos: ["clrtzi99H1g"] },
+    { name: "HASSİKOME", clan: "", videos: ["clrtzi99H1g"] },
+    { name: "TRLazoğlu_53", clan: "", videos: ["clrtzi99H1g", "185A4JmaJRU"] },
+    { name: "Danny", clan: "", videos: ["clrtzi99H1g"] },
+    { name: "atapunktur", clan: "", videos: ["clrtzi99H1g", "185A4JmaJRU"] },
+    { name: "Furkangamer01", clan: "", videos: ["uJiD411WWBQ"] },
+    { name: "S-HYDRAq", clan: "[ÇB]", videos: ["Suomz9uE49s"] },
+    { name: "Pupperez", clan: "{SEX}", videos: ["Suomz9uE49s"] },
+    { name: "egoista", clan: "", videos: ["185A4JmaJRU"] },
+    { name: "EXCELBANN", clan: "", videos: ["185A4JmaJRU"] },
+    { name: "ATLAST TECH", clan: "", videos: ["185A4JmaJRU"] }
   ]
 };
