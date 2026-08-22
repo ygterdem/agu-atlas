@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aghustos'un Youtube Atlas'ı</title>
+<meta name="description" content="Aghustos'un videolarında birlikte oynadığı oyuncuların bağlantı haritası.">
+<meta property="og:title" content="Aghustos'un Youtube Atlas'ı">
+<meta property="og:description" content="Videolarda birlikte oynanan oyuncuların bağlantı haritası.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
+</head>
+<body>
+
+<div id="app">
+
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-mark">🛰️</span>
+      <div class="brand-text">
+        <h1>Aghustos'un Youtube Atlas'ı</h1>
+        <p id="brand-sub">Videolarda birlikte oynadığım herkes, tek haritada</p>
+      </div>
+    </div>
+
+    <div class="tools">
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="Oyuncu veya klan ara…" autocomplete="off" spellcheck="false">
+        <button id="search-clear" title="Temizle" aria-label="Aramayı temizle">×</button>
+      </div>
+      <button id="btn-labels" class="tool-btn" title="Tüm isimleri göster/gizle">Aa</button>
+      <button id="btn-reset" class="tool-btn" title="Görünümü sıfırla">⟳</button>
+      <button id="btn-help" class="tool-btn" title="Nasıl kullanılır">?</button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <svg id="atlas" role="img" aria-label="Oyuncu bağlantı haritası"></svg>
+
+    <div id="tooltip" class="tooltip" hidden></div>
+
+    <aside id="legend">
+      <div class="legend-head">
+        <span>Klanlar</span>
+        <button id="legend-all" class="mini-btn">Tümü</button>
+      </div>
+      <div id="legend-list"></div>
+      <div class="legend-foot">
+        <span class="dot-scale"><i style="width:8px;height:8px"></i><i style="width:13px;height:13px"></i><i style="width:19px;height:19px"></i></span>
+        <span>Baloncuk büyüdükçe = daha çok video</span>
+      </div>
+    </aside>
+
+    <aside id="panel" class="panel" hidden>
+      <button id="panel-close" class="panel-close" aria-label="Kapat">×</button>
+      <div id="panel-body"></div>
+    </aside>
+
+    <footer id="stats"></footer>
+  </main>
+
+  <div id="help" class="modal" hidden>
+    <div class="modal-card">
+      <button id="help-close" class="panel-close" aria-label="Kapat">×</button>
+      <h2>Nasıl çalışıyor?</h2>
+      <ul>
+        <li><b>Ortadaki</b> baloncuk benim. Herkes bana bağlı.</li>
+        <li><b>Baloncuk boyutu</b> = kaç videoda birlikte oynadığımız.</li>
+        <li><b>Merkeze yakınlık</b> = ne kadar sık birlikte oynadığımız.</li>
+        <li><b>Renkler</b> klanları gösterir; aynı klan bir arada kümelenir.</li>
+        <li>Bir baloncuğa <b>tıkla</b> → hangi videolarda oynadığımızı gör.</li>
+        <li>Tekerlek ile <b>yakınlaştır</b>, sürükleyerek <b>gez</b>, baloncukları <b>tut ve at</b>.</li>
+      </ul>
+      <p class="muted">Klavye: <kbd>/</kbd> ara &nbsp; <kbd>Esc</kbd> kapat &nbsp; <kbd>R</kbd> sıfırla</p>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="data/atlas-data.js"></script>
+<script src="assets/atlas.js"></script>
+</body>
+</html>
