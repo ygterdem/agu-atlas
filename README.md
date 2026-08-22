@@ -9,8 +9,12 @@ Ortada ben varım; herkes bana bağlı. İki ayrı şey iki ayrı bilgi taşır:
 
 Yani tek videoda çıkmış ama dün oynamış biri merkeze yakın küçük bir
 baloncuk; 20 videoda çıkmış ama iki yıldır oynamamış biri dışarıda büyük bir
-baloncuk olur. Halkalar tarihtir: aynı halkadakilerle son kez aynı gün
-oynanmıştır.
+baloncuk olur.
+
+Halkalar **ay**dır: aynı halkadakilerle son kez aynı ay içinde oynanmıştır.
+Halkalar arası mesafe **gerçek takvim farkını** yansıtır — 2022 ile 2024
+arasında iki yıl varsa halkaları da iki yıl kadar uzaktadır, sırada komşu
+olsalar bile.
 
 Aynı klandakiler aynı renkte ve bir arada kümelenir; klanlar çemberde
 büyükten küçüğe yan yana dizilir.
@@ -201,3 +205,4 @@ Tek dış bağımlılık: [D3.js](https://d3js.org) (CDN üzerinden). Derleme ad
 | `LABEL_MIN_R` | Bu boyutun altındaki isimler sadece üzerine gelince görünür |
 | `PALETTE` | Rengi belirtilmemiş klanlara atanacak renkler |
 | `PUBLIC_GROUP_MIN` | Kaç ayrı videoda birlikte oynayan public'ler aynı grup sayılsın (varsayılan 2) |
+| `TIME_WEIGHT` | Halka aralıkları ne kadar takvime baksın. `1` = tamamen gerçek zaman farkı (yoğun dönemler sıkışır), `0` = bütün aylar eşit aralıklı. Varsayılan `0.85` |

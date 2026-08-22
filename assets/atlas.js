@@ -8,13 +8,14 @@
 
   // ----------------------------------------------------------------- ayarlar
   var CFG = {
-    R_FAR: 430,        // en eskiden beri oynamadıklarımın merkeze uzaklığı
-    R_NEAR: 155,       // en son birlikte oynadıklarımın merkeze uzaklığı
-    R_MIN: 9,          // en az videoda çıkanın baloncuk yarıçapı
-    R_MAX: 30,         // en çok videoda çıkanın baloncuk yarıçapı
+    R_FAR: 640,        // en eskiden beri oynamadıklarımın merkeze uzaklığı
+    R_NEAR: 165,       // en son birlikte oynadıklarımın merkeze uzaklığı
+    R_MIN: 10,         // en az videoda çıkanın baloncuk yarıçapı
+    R_MAX: 34,         // en çok videoda çıkanın baloncuk yarıçapı
     R_CENTER: 46,      // merkez baloncuk yarıçapı
     LABEL_MIN_R: 13,   // bu yarıçapın altındakilerin ismi normalde gizli
     PUBLIC_GROUP_MIN: 2, // kaç ayrı videoda birlikte oynayanlar aynı grup sayılsın
+    TIME_WEIGHT: 0.85, // halka aralıkları: 1 = tamamen takvim farkı, 0 = eşit aralık
     PALETTE: ["#ffd166", "#ff5c8a", "#5cc8ff", "#8bd450", "#b18cff",
               "#ff9f45", "#4ecdc4", "#e05be0", "#7ea6ff", "#d4b483"],
     NO_CLAN: { tag: "__none__", name: "Public", color: "#7d87ad" }
@@ -123,16 +124,45 @@
   // Aynı tarihte son kez görünenler aynı halkada durur; en yeni tarih en içte.
   // (Baloncuğun BOYUTU ise video sayısından gelir; ikisi ayrı iş yapar.)
   var dateRings = [], homeByDate = {};
+  // Halkalar AY bazında: aynı ay içinde son kez oynadıklarım aynı halkada.
+  // Gün gün halka açmak, birbirinden 1 gün farklı onlarca halka üretiyor ve
+  // aralarındaki takvim farkı görünmez hâle geliyordu.
+  function monthKey(d) { return d ? String(d).slice(0, 7) : ""; }
+  function stamp(d) {
+    var q = String(d).split("-");
+    return Date.UTC(+q[0], (+q[1] || 1) - 1, 1);
+  }
   function buildRings() {
     var seen = {};
-    players.forEach(function (p) { seen[p.lastDate] = 1; });
-    dateRings = Object.keys(seen).sort().reverse();   // en yeni önce, tarihsizler en sonda
-    var n = dateRings.length;
-    dateRings.forEach(function (d, i) {
-      homeByDate[d] = n > 1
-        ? CFG.R_NEAR + (CFG.R_FAR - CFG.R_NEAR) * (i / (n - 1))
-        : (CFG.R_NEAR + CFG.R_FAR) / 2;
+    players.forEach(function (p) { seen[monthKey(p.lastDate)] = 1; });
+    var dated = Object.keys(seen).filter(Boolean).sort().reverse();  // en yeni önce
+    var undated = !!seen[""];
+    // Tarihsizler en dışta ayrı bir halkada; tarihli olanlar onun içine sığar.
+    var outer = CFG.R_FAR - (undated ? 55 : 0);
+
+    if (!dated.length) {
+      dateRings = undated ? [""] : [];
+      if (undated) homeByDate[""] = (CFG.R_NEAR + CFG.R_FAR) / 2;
+      return;
+    }
+
+    // Halka aralıkları takvim farkını yansıtır: iki yıl ara varsa halkalar da
+    // uzak durur, sırayla komşu olsalar bile. Ama saf takvim ölçeği,
+    // yoğunlaşan son dönemi tek bir halkaya sıkıştırdığı için sıra ölçeğiyle
+    // harmanlanıyor (CFG.TIME_WEIGHT).
+    var newest = stamp(dated[0]);
+    var oldest = stamp(dated[dated.length - 1]);
+    var span = Math.max(1, newest - oldest);
+    var w = Math.min(1, Math.max(0, CFG.TIME_WEIGHT));
+    var n = dated.length;
+    dated.forEach(function (d, i) {
+      var byTime = (newest - stamp(d)) / span;
+      var byRank = n > 1 ? i / (n - 1) : 0;
+      var t = w * byTime + (1 - w) * byRank;
+      homeByDate[d] = CFG.R_NEAR + (outer - CFG.R_NEAR) * t;
     });
+    if (undated) homeByDate[""] = CFG.R_FAR;
+    dateRings = dated.concat(undated ? [""] : []);
   }
 
   // Her oyuncunun birlikte oynadığımız ilk/son video tarihi.
@@ -146,7 +176,8 @@
   });
 
   buildRings();
-  players.forEach(function (p) { p.home = homeByDate[p.lastDate]; });  // UZAKLIK: son oynama
+  // UZAKLIK: son birlikte oynadığımız ay
+  players.forEach(function (p) { p.home = homeByDate[monthKey(p.lastDate)]; });
 
   // Klan geçmişi: her video için o dönemki klan (clanAt) yoksa mevcut klan.
   // Ardışık aynı klanlar tek bir döneme birleştirilir.
@@ -353,7 +384,12 @@
     if (all.length && keep.indexOf(all[all.length - 1]) === -1) keep.push(all[all.length - 1]);
     return keep;
   })();
-  function ringLabel(d) { return d ? fmtDate(d) : "tarihsiz"; }
+  function ringLabel(d) {
+    if (!d) return "tarihsiz";
+    var q = String(d).split("-");
+    var aylar = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+    return (aylar[(+q[1]) - 1] || "") + " " + q[0];
+  }
   gRings.selectAll("circle").data(ringDates).join("circle")
     .attr("r", function (d) { return homeByDate[d]; })
     .attr("fill", "none")
@@ -505,7 +541,7 @@
   function fit(animate, useExtent) {
     resize();
     var R = useExtent ? extentRadius() : CFG.R_FAR + 40;
-    var pad = 34;
+    var pad = 18;
     var k = Math.min(W / (2 * (R + pad)), H / (2 * (R + pad)));
     k = Math.max(0.12, Math.min(1.15, k));
     var cur = d3.zoomTransform(svg.node()).k;
