@@ -12,9 +12,17 @@ baloncuk; 20 videoda çıkmış ama iki yıldır oynamamış biri dışarıda b�
 baloncuk olur.
 
 Halkalar **ay**dır: aynı halkadakilerle son kez aynı ay içinde oynanmıştır.
-Halkalar arası mesafe **gerçek takvim farkını** yansıtır — 2022 ile 2024
-arasında iki yıl varsa halkaları da iki yıl kadar uzaktadır, sırada komşu
+Aylar arası boşluk **gerçek takvim farkını** yansıtır — 2022 ile 2024
+arasında iki yıl varsa aralarındaki boşluk da o kadar açıktır, sırada komşu
 olsalar bile.
+
+Bir ay çok kalabalıksa (mesela 179 kişinin son videosu aynı aya denk
+geliyorsa) o ay tek çembere tıkışmaz: **iç içe birkaç sıraya** açılır.
+Her sıra tam bir çemberdir, baloncuklar üst üste binmez.
+
+Klanlar ve birlikte oynayan public grupları çemberde **sabit birer dilim**
+tutar; dilim genişliği o grubun en kalabalık ayına göre ayarlanır. Böylece
+bir grup hangi ayda olursa olsun hep aynı yönde kalır.
 
 Aynı klandakiler aynı renkte ve bir arada kümelenir; klanlar çemberde
 büyükten küçüğe yan yana dizilir.
@@ -205,4 +213,6 @@ Tek dış bağımlılık: [D3.js](https://d3js.org) (CDN üzerinden). Derleme ad
 | `LABEL_MIN_R` | Bu boyutun altındaki isimler sadece üzerine gelince görünür |
 | `PALETTE` | Rengi belirtilmemiş klanlara atanacak renkler |
 | `PUBLIC_GROUP_MIN` | Kaç ayrı videoda birlikte oynayan public'ler aynı grup sayılsın (varsayılan 2) |
-| `TIME_WEIGHT` | Halka aralıkları ne kadar takvime baksın. `1` = tamamen gerçek zaman farkı (yoğun dönemler sıkışır), `0` = bütün aylar eşit aralıklı. Varsayılan `0.85` |
+| `MONTH_GAP` | Aylar arası boşluk (ay başına piksel). Büyütürsen takvim farkı daha belirgin olur, çember büyür |
+| `MONTH_GAP_MAX` | En fazla kaç aylık boşluk sayılsın (çok eski tarihler çemberi şişirmesin) |
+| `BUBBLE_PAD` | Baloncuklar arası boşluk |

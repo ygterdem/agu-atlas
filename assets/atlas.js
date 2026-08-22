@@ -8,14 +8,15 @@
 
   // ----------------------------------------------------------------- ayarlar
   var CFG = {
-    R_FAR: 640,        // en eskiden beri oynamadıklarımın merkeze uzaklığı
-    R_NEAR: 165,       // en son birlikte oynadıklarımın merkeze uzaklığı
+    R_NEAR: 120,       // en son birlikte oynadıklarımın merkeze uzaklığı
+    BUBBLE_PAD: 5,     // baloncuklar arası boşluk
+    MONTH_GAP: 14,     // aylar arası boşluk (ay başına)
+    MONTH_GAP_MAX: 10, // en fazla kaç aylık boşluk sayılsın
     R_MIN: 10,         // en az videoda çıkanın baloncuk yarıçapı
     R_MAX: 34,         // en çok videoda çıkanın baloncuk yarıçapı
     R_CENTER: 46,      // merkez baloncuk yarıçapı
     LABEL_MIN_R: 13,   // bu yarıçapın altındakilerin ismi normalde gizli
     PUBLIC_GROUP_MIN: 2, // kaç ayrı videoda birlikte oynayanlar aynı grup sayılsın
-    TIME_WEIGHT: 0.85, // halka aralıkları: 1 = tamamen takvim farkı, 0 = eşit aralık
     PALETTE: ["#ffd166", "#ff5c8a", "#5cc8ff", "#8bd450", "#b18cff",
               "#ff9f45", "#4ecdc4", "#e05be0", "#7ea6ff", "#d4b483"],
     NO_CLAN: { tag: "__none__", name: "Public", color: "#7d87ad" }
@@ -120,51 +121,6 @@
   var maxCount = d3.max(players, function (d) { return d.count; }) || 1;
   var rScale = d3.scaleSqrt().domain([1, Math.max(2, maxCount)]).range([CFG.R_MIN, CFG.R_MAX]).clamp(true);
 
-  // Merkeze uzaklık = en son ne zaman birlikte oynadığımız.
-  // Aynı tarihte son kez görünenler aynı halkada durur; en yeni tarih en içte.
-  // (Baloncuğun BOYUTU ise video sayısından gelir; ikisi ayrı iş yapar.)
-  var dateRings = [], homeByDate = {};
-  // Halkalar AY bazında: aynı ay içinde son kez oynadıklarım aynı halkada.
-  // Gün gün halka açmak, birbirinden 1 gün farklı onlarca halka üretiyor ve
-  // aralarındaki takvim farkı görünmez hâle geliyordu.
-  function monthKey(d) { return d ? String(d).slice(0, 7) : ""; }
-  function stamp(d) {
-    var q = String(d).split("-");
-    return Date.UTC(+q[0], (+q[1] || 1) - 1, 1);
-  }
-  function buildRings() {
-    var seen = {};
-    players.forEach(function (p) { seen[monthKey(p.lastDate)] = 1; });
-    var dated = Object.keys(seen).filter(Boolean).sort().reverse();  // en yeni önce
-    var undated = !!seen[""];
-    // Tarihsizler en dışta ayrı bir halkada; tarihli olanlar onun içine sığar.
-    var outer = CFG.R_FAR - (undated ? 55 : 0);
-
-    if (!dated.length) {
-      dateRings = undated ? [""] : [];
-      if (undated) homeByDate[""] = (CFG.R_NEAR + CFG.R_FAR) / 2;
-      return;
-    }
-
-    // Halka aralıkları takvim farkını yansıtır: iki yıl ara varsa halkalar da
-    // uzak durur, sırayla komşu olsalar bile. Ama saf takvim ölçeği,
-    // yoğunlaşan son dönemi tek bir halkaya sıkıştırdığı için sıra ölçeğiyle
-    // harmanlanıyor (CFG.TIME_WEIGHT).
-    var newest = stamp(dated[0]);
-    var oldest = stamp(dated[dated.length - 1]);
-    var span = Math.max(1, newest - oldest);
-    var w = Math.min(1, Math.max(0, CFG.TIME_WEIGHT));
-    var n = dated.length;
-    dated.forEach(function (d, i) {
-      var byTime = (newest - stamp(d)) / span;
-      var byRank = n > 1 ? i / (n - 1) : 0;
-      var t = w * byTime + (1 - w) * byRank;
-      homeByDate[d] = CFG.R_NEAR + (outer - CFG.R_NEAR) * t;
-    });
-    if (undated) homeByDate[""] = CFG.R_FAR;
-    dateRings = dated.concat(undated ? [""] : []);
-  }
-
   // Her oyuncunun birlikte oynadığımız ilk/son video tarihi.
   players.forEach(function (p) {
     var ds = p.videos
@@ -175,9 +131,20 @@
     p.r = rScale(p.count);          // BOYUT: kaç videoda oynadığı
   });
 
-  buildRings();
-  // UZAKLIK: son birlikte oynadığımız ay
-  players.forEach(function (p) { p.home = homeByDate[monthKey(p.lastDate)]; });
+  // Merkeze uzaklık = en son ne zaman birlikte oynadığımız (BOYUT ise video
+  // sayısı; ikisi ayrı iş yapar). Aynı ay içinde son kez oynadıklarım aynı
+  // "ay bandında" durur. Bir bantta çok kişi varsa bant, iç içe birkaç sıraya
+  // açılır — böylece kalabalık aylar tek çemberde birbirine binmez.
+  function monthKey(d) { return d ? String(d).slice(0, 7) : ""; }
+  function monthStamp(k) {
+    var q = String(k).split("-");
+    return Date.UTC(+q[0], (+q[1] || 1) - 1, 1);
+  }
+  function monthsBetween(a, b) {
+    var qa = a.split("-"), qb = b.split("-");
+    return Math.abs((+qa[0] - +qb[0]) * 12 + (+qa[1] - +qb[1]));
+  }
+
 
   // Klan geçmişi: her video için o dönemki klan (clanAt) yoksa mevcut klan.
   // Ardışık aynı klanlar tek bir döneme birleştirilir.
@@ -205,9 +172,22 @@
     });
   });
 
-  // ---- açı dağılımı için ortak hazırlık ----
+  // merkez düğüm
+  var center = {
+    id: "center", isCenter: true,
+    name: DATA.center && DATA.center.name ? DATA.center.name : "Ben",
+    subtitle: (DATA.center && DATA.center.subtitle) || "",
+    color: (DATA.center && DATA.center.color) || "#ffd166",
+    channel: (DATA.center && DATA.center.channel) || "",
+    clan: null, count: (DATA.videos || []).length,
+    r: CFG.R_CENTER, fx: 0, fy: 0, x: 0, y: 0
+  };
+
+  // ---- yerleşim ----
+  // Açı: klanlar ve public grupları birer blok; blok genişliği üye sayısıyla
+  // orantılı. Yarıçap: ay bantları, yeniden eskiye. Bir bantta bir bloğun
+  // üyeleri yaya sığmıyorsa bant o blok için yeni bir sıra açar.
   var TAU = Math.PI * 2, TOP = -Math.PI / 2;
-  var total = players.length || 1;
   var publics = players.filter(function (p) { return p.clan === CFG.NO_CLAN.tag; });
   var clanMembers = {};
   players.forEach(function (p) {
@@ -215,24 +195,16 @@
     (clanMembers[p.clan] = clanMembers[p.clan] || []).push(p);
   });
 
-  // Bir baloncuğun kendi yarıçapında kapladığı açı. Merkeze yakın olanlar
-  // aynı genişlik için daha çok açıya ihtiyaç duyar.
-  function needAngle(p) { return (2 * p.r + 6) / Math.max(40, p.home); }
-  function needOf(list) {
-    return list.reduce(function (a, p) { return a + needAngle(p); }, 0);
-  }
-  // Listeyi verilen yaya, her üyeye ihtiyacı oranında yer vererek dizer.
-  function spreadInto(list, center, span) {
-    if (!list.length) return;
-    var tot = needOf(list) || 1;
-    var use = Math.max(0.04, span * 0.94);
-    var start = center - use / 2, acc = 0;
-    list.forEach(function (p) {
-      var w = needAngle(p) / tot * use;
-      p.angle = start + acc + w / 2;
-      acc += w;
-    });
-  }
+  function width(p) { return 2 * p.r + CFG.BUBBLE_PAD; }   // baloncuğun kapladığı yay uzunluğu
+
+  // Ay bantları: en yeni içte.
+  var monthKeys = (function () {
+    var seen = {};
+    players.forEach(function (p) { seen[monthKey(p.lastDate)] = 1; });
+    var dated = Object.keys(seen).filter(Boolean).sort().reverse();
+    return dated.concat(seen[""] ? [""] : []);
+  })();
+  var bands = {};   // key -> {r0, thick, rows}
 
   // Public'ler klansız ama gruplaşabilir: birbirleriyle CFG.PUBLIC_GROUP_MIN
   // veya daha fazla AYRI videoda oynayanlar aynı takım sayılır ve haritada
@@ -280,56 +252,114 @@
     return groups;
   })();
 
+  // Blokları kur (klanlar büyükten küçüğe, aralarda public grupları).
+  var blocks = [];
   if (!clanList.length) {
-    // Hiç klan yoksa public grupları çembere sırayla dizilir.
     var flat = [];
     publicGroups.forEach(function (g) { g.forEach(function (p) { flat.push(p); }); });
-    spreadInto(flat, TOP + Math.PI, TAU);
+    blocks.push({ list: flat });
   } else {
-    var gaps = clanList.length;   // her klandan sonra bir boşluk
-
-    // Grupları boşluklara dağıt: her grup BÖLÜNMEDEN, o an en az dolu olan
-    // boşluğa gider. Böylece birlikte oynayanlar yan yana kalır.
     var buckets = [];
-    for (var gi = 0; gi < gaps; gi++) buckets.push([]);
+    for (var gi = 0; gi < clanList.length; gi++) buckets.push([]);
     publicGroups.forEach(function (g) {
       var best = 0;
-      for (var i = 1; i < gaps; i++) if (buckets[i].length < buckets[best].length) best = i;
+      for (var i = 1; i < buckets.length; i++) if (buckets[i].length < buckets[best].length) best = i;
       g.forEach(function (p) { buckets[best].push(p); });
     });
-
-    // Yay payları kişi sayısına değil, o kişilerin gerçekten ihtiyaç duyduğu
-    // açıya göre veriliyor: merkeze yakın (çok videolu) baloncuklar daha
-    // geniş yer alır, böylece gruplar birbirinin üstüne taşmaz.
-    var blocks = [];
     clanList.forEach(function (c, i) {
-      blocks.push({ kind: "clan", clan: c, list: clanMembers[c.tag] || [] });
-      blocks.push({ kind: "gap", list: buckets[i] });
-    });
-    var grand = blocks.reduce(function (a, b) { return a + needOf(b.list); }, 0) || 1;
-
-    var acc = 0;
-    blocks.forEach(function (b) {
-      var span = needOf(b.list) / grand * TAU;
-      if (b.kind === "clan") {
-        b.clan.a0 = acc; b.clan.a1 = acc + span;
-        b.clan.angle = TOP + acc + span / 2;
-      }
-      spreadInto(b.list, TOP + acc + span / 2, span);
-      acc += span;
+      blocks.push({ clan: c, list: clanMembers[c.tag] || [] });
+      blocks.push({ list: buckets[i] });
     });
   }
 
-  // merkez düğüm
-  var center = {
-    id: "center", isCenter: true,
-    name: DATA.center && DATA.center.name ? DATA.center.name : "Ben",
-    subtitle: (DATA.center && DATA.center.subtitle) || "",
-    color: (DATA.center && DATA.center.color) || "#ffd166",
-    channel: (DATA.center && DATA.center.channel) || "",
-    clan: null, count: (DATA.videos || []).length,
-    r: CFG.R_CENTER, fx: 0, fy: 0, x: 0, y: 0
-  };
+  // Her bloğa çemberde SABİT bir dilim veriyoruz; böylece bir klan ya da
+  // birlikte oynayan bir public grubu, hangi ay bandında olursa olsun hep
+  // aynı yönde kalır ve bir arada okunur.
+  //
+  // Dilim genişliği, bloğun EN KALABALIK ayına göre: o ayda tek sıraya
+  // sığsın, diğer aylarda da bol bol yeri olsun.
+  var monthOf = {};
+  players.forEach(function (p) { monthOf[p.id] = monthKey(p.lastDate); });
+
+  (function () {
+    blocks.forEach(function (b) {
+      var per = {};
+      b.list.forEach(function (p) {
+        var k = monthOf[p.id];
+        per[k] = (per[k] || 0) + width(p);
+      });
+      var mx = 0;
+      Object.keys(per).forEach(function (k) { if (per[k] > mx) mx = per[k]; });
+      b.weight = Math.max(mx, 1);
+    });
+    var sum = blocks.reduce(function (a2, b2) { return a2 + b2.weight; }, 0) || 1;
+    var acc = 0;
+    blocks.forEach(function (b) {
+      b.span = b.weight / sum * TAU;
+      b.a0 = acc; b.a1 = acc + b.span;
+      b.center = TOP + acc + b.span / 2;
+      if (b.clan) { b.clan.a0 = b.a0; b.clan.a1 = b.a1; b.clan.angle = b.center; }
+      acc += b.span;
+    });
+  })();
+
+  // Ay bantları: en yeni içte. Bir bantta bir bloğun üyeleri kendi dilimine
+  // sığmıyorsa bant yeni bir sıra açar (satır kaydırma gibi), böylece
+  // kalabalık aylar tek çembere tıkışmaz.
+  (function () {
+    var r = CFG.R_NEAR;
+    monthKeys.forEach(function (mk, mi) {
+      var members = {};   // blok -> o aydaki üyeler
+      var any = false, maxR = 0;
+      blocks.forEach(function (b, bi) {
+        var mem = b.list.filter(function (p) { return monthOf[p.id] === mk; });
+        members[bi] = mem;
+        if (mem.length) any = true;
+        mem.forEach(function (p) { if (p.r > maxR) maxR = p.r; });
+      });
+      if (!any) { bands[mk] = { r0: r, rows: 0, thick: 0 }; return; }
+
+      var rowGap = 2 * maxR + CFG.BUBBLE_PAD;
+
+      // Kaç sıra? Dilimine sığmayan blok kadar.
+      var rows = 1;
+      blocks.forEach(function (b, bi) {
+        var mem = members[bi];
+        if (!mem.length) return;
+        var need = mem.reduce(function (a2, p) { return a2 + width(p); }, 0);
+        var perRow = Math.max(1, b.span * (r + rowGap / 2));
+        rows = Math.max(rows, Math.min(mem.length, Math.ceil(need / perRow)));
+      });
+
+      // Yerleştir: her blok kendi diliminde, üyeleri sıralara eşit bölerek.
+      blocks.forEach(function (b, bi) {
+        var mem = members[bi];
+        if (!mem.length) return;
+        var per = Math.ceil(mem.length / rows);
+        for (var k = 0; k < rows; k++) {
+          var chunk = mem.slice(k * per, (k + 1) * per);
+          if (!chunk.length) continue;
+          var rr = r + k * rowGap + rowGap / 2;
+          var W = chunk.reduce(function (a2, p) { return a2 + width(p); }, 0) || 1;
+          // Dilimi tam doldur: yarım kalan sıra ve dikiş izi olmasın.
+          var use = b.span * 0.98;
+          var start = b.center - use / 2, acc2 = 0;
+          chunk.forEach(function (p) {
+            var w = width(p) / W * use;
+            p.home = rr;
+            p.angle = start + acc2 + w / 2;
+            acc2 += w;
+          });
+        }
+      });
+
+      bands[mk] = { r0: r, rows: rows, thick: rows * rowGap };
+
+      var next = monthKeys[mi + 1];
+      var gapMonths = (mk && next) ? monthsBetween(mk, next) : 1;
+      r += bands[mk].thick + CFG.MONTH_GAP * Math.min(gapMonths, CFG.MONTH_GAP_MAX);
+    });
+  })();
 
   // düğüm görselleri (açı yukarıda hesaplandı)
   players.forEach(function (p) {
@@ -373,17 +403,8 @@
   var gNodes = root.append("g").attr("class", "nodes");
 
   // merkezden dışa doğru yoğunluk halkaları
-  // Halkalar artık tarih halkası: birbirine çok yakın olanlar etiketlenmez.
-  var ringDates = (function () {
-    var all = dateRings.slice().sort(function (a, b) { return homeByDate[a] - homeByDate[b]; });
-    var keep = [], last = -1e9;
-    all.forEach(function (d) {
-      var r = homeByDate[d];
-      if (r - last >= 46) { keep.push(d); last = r; }
-    });
-    if (all.length && keep.indexOf(all[all.length - 1]) === -1) keep.push(all[all.length - 1]);
-    return keep;
-  })();
+  // Her ay bandının iç sınırına bir çizgi.
+  var ringDates = monthKeys.slice();
   function ringLabel(d) {
     if (!d) return "tarihsiz";
     var q = String(d).split("-");
@@ -391,13 +412,13 @@
     return (aylar[(+q[1]) - 1] || "") + " " + q[0];
   }
   gRings.selectAll("circle").data(ringDates).join("circle")
-    .attr("r", function (d) { return homeByDate[d]; })
+    .attr("r", function (d) { return bands[d].r0 - CFG.BUBBLE_PAD; })
     .attr("fill", "none")
     .attr("stroke", "#ffffff")
     .attr("stroke-opacity", 0.045)
     .attr("stroke-dasharray", "2 6");
   gRings.selectAll("text").data(ringDates).join("text")
-    .attr("x", 0).attr("y", function (d) { return -homeByDate[d] - 6; })
+    .attr("x", 0).attr("y", function (d) { return -(bands[d].r0 - CFG.BUBBLE_PAD) - 5; })
     .attr("text-anchor", "middle")
     .attr("fill", "#ffffff").attr("fill-opacity", 0.22)
     .attr("font-size", 9).attr("letter-spacing", 0.5)
@@ -496,13 +517,11 @@
       p.x = p.tx; p.y = p.ty; p.vx = 0; p.vy = 0; p.fx = null; p.fy = null;
     });
     center.x = 0; center.y = 0; center.fx = 0; center.fy = 0;
-    sim.alpha(1);
-    for (var i = 0; i < SETTLE_TICKS; i++) sim.tick();
-    sim.stop();
-    // Simülasyon açıları ve kümeleri belirledi; şimdi yarıçapları tam
-    // sıralamaya oturtup kalan çakışmaları açıdan çözüyoruz.
+    // Konumlar yukarıda tam olarak hesaplandı (ay bandı + blok dilimi + sıra).
+    // Kuvvet simülasyonuna gerek yok; sadece kalan bir çakışma varsa açıdan
+    // ayırıyoruz ve herkesi tam yarıçapına oturtuyoruz.
     players.forEach(project);
-    spreadAngular(60);
+    spreadAngular(24);
     nodes.forEach(function (n) { n.fx = n.x; n.fy = n.y; });  // artık kıpırdamazlar
     draw();
   }
@@ -529,6 +548,10 @@
     W = stage.clientWidth; H = stage.clientHeight;
     svg.attr("viewBox", [-W / 2, -H / 2, W, H].join(" "));
   }
+  function outerRadius() {
+    var last = monthKeys[monthKeys.length - 1];
+    return last ? bands[last].r0 + bands[last].thick + 20 : CFG.R_NEAR;
+  }
   function extentRadius() {
     var m = 0;
     for (var i = 0; i < nodes.length; i++) {
@@ -536,11 +559,11 @@
       var d = Math.sqrt(n.x * n.x + n.y * n.y) + n.r + 14;
       if (d > m) m = d;
     }
-    return m || CFG.R_FAR;
+    return m || outerRadius();
   }
   function fit(animate, useExtent) {
     resize();
-    var R = useExtent ? extentRadius() : CFG.R_FAR + 40;
+    var R = useExtent ? extentRadius() : outerRadius();
     var pad = 18;
     var k = Math.min(W / (2 * (R + pad)), H / (2 * (R + pad)));
     k = Math.max(0.12, Math.min(1.15, k));
