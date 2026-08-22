@@ -6,7 +6,9 @@ baloncuğu o kadar **büyük** ve merkeze o kadar **yakın**. Aynı klandakiler
 aynı renkte ve bir arada kümelenir.
 
 Yerleşim sayfa açılırken bir kere hesaplanır ve **sabitlenir** — baloncuklar
-kıpırdamaz, her açılışta tam olarak aynı yerde durur.
+hiçbir şekilde kıpırdamaz, sürüklenemez ve her açılışta tam olarak aynı
+yerde durur. Fare tekerleğiyle yakınlaşıp haritada gezebilirsin; bu sadece
+kamerayı oynatır, baloncukların birbirine göre yeri hiç değişmez.
 
 [twitchatlas.com](https://twitchatlas.com) tarzı, ama tamamen elle seçilmiş veriyle.
 
@@ -90,7 +92,6 @@ Video id'sini yanlış yazarsan o video sessizce atlanır; tarayıcı konsolunda
 | Tüm isimler | `Aa` butonu |
 | Görünümü sıfırla | `⟳` butonu veya `R` tuşu |
 | Yakınlaştır / gez | Fare tekerleği / boşluğu sürükle |
-| Baloncuğu taşı | Tut ve sürükle — bıraktığın yerde kalır, `⟳` eski hâline döndürür |
 
 ---
 

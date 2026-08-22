@@ -229,7 +229,8 @@
     .alphaDecay(ALPHA_DECAY)
     .stop();
 
-  // Yerleşimi hesapla ve her baloncuğu yerine çivile.
+  // Yerleşimi bir kere hesapla ve her baloncuğu yerine çivile.
+  // Bu fonksiyon sayfa ömrü boyunca yalnızca bir kez çalışır.
   function layout() {
     players.forEach(function (p) {
       p.x = p.tx; p.y = p.ty; p.vx = 0; p.vy = 0; p.fx = null; p.fy = null;
@@ -291,14 +292,7 @@
   layout();
   fit(false, true);
 
-  // ----------------------------------------------------------------- sürükle
-  node.call(d3.drag()
-    .on("start", function () { svg.classed("dragging", true); })
-    .on("drag", function (ev, d) {
-      d.x = d.fx = ev.x; d.y = d.fy = ev.y;
-      draw();
-    })
-    .on("end", function () { svg.classed("dragging", false); }));
+  // Baloncuklar sürüklenemez: konumları kalıcı olarak sabit.
 
   function isVisible(d) { return d.isCenter || !state.hidden[d.clan]; }
   function matches(d) {
@@ -504,7 +498,7 @@
   };
   document.getElementById("btn-reset").onclick = function () {
     state.hidden = {}; state.query = ""; search.value = "";
-    select(null); userMoved = false; layout(); fit(true, true);
+    select(null); userMoved = false; fit(true, true);
   };
   var help = document.getElementById("help");
   document.getElementById("btn-help").onclick = function () { help.hidden = false; };

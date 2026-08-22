@@ -69,7 +69,7 @@ body{
 /* ---------- stage ---------- */
 #stage{position:relative;flex:1;min-height:0}
 #atlas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
-#atlas.dragging{cursor:grabbing}
+#atlas:active{cursor:grabbing}
 
 .link{stroke:#ffffff;stroke-opacity:.10;fill:none}
 .node{cursor:pointer}
