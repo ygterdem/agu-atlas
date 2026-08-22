@@ -41,44 +41,63 @@ python -m http.server 8899
 
 ## ✏️ Veri nasıl güncellenir?
 
-**Sadece `data/atlas-data.js` dosyasını düzenle.** Başka hiçbir dosyaya
-dokunmana gerek yok. Üç liste var:
+### Kolay yol: düzenleyici (önerilen)
 
-### 1) `clans` — klanlar
+**https://ygterdem.github.io/agu-atlas/editor.html**
+(haritadaki sağ üstteki ✎ butonu da buraya götürür)
+
+Kod yazmadan, form doldurarak veri girersin:
+
+| Sekme | Ne yapar |
+|---|---|
+| **Kadro** | Asıl kullanacağın ekran. Soldan videoyu seç, sağda o videoda oynayanları yaz. İsmi yazıp Enter'a bas; oyuncu yoksa anında oluşturulur. Sık oynayanlar “Hızlı ekle” olarak tek tıkla eklenir. |
+| **Videolar** | YouTube linkini yapıştır → başlık otomatik çekilir, video id'si linkten üretilir. |
+| **Oyuncular** | İsim, klan, kanal linki, not düzenleme. Video sayısı kadrodan gelir, elle girilmez. |
+| **Klanlar** | Etiket, ad, renk. Etiketi değiştirirsen o klandaki oyuncular otomatik taşınır. Tanımsız etiket kalmışsa tek tıkla düzeltir. |
+| **Ayarlar** | Merkezdeki (senin) isim, alt başlık, renk, kanal linki. |
+| **Kaydet** | Hataları listeler, dosyayı üretir. |
+
+Yaptığın her değişiklik tarayıcıya anında kaydedilir (sekmeyi kapatsan da durur).
+Bitince:
+
+1. **atlas-data.js indir** butonuna bas
+2. İnen dosyayı projedeki `data/atlas-data.js` üzerine yaz
+3. `git add -A && git commit -m "yeni oyuncular" && git push`
+
+Düzenleyici sunucusuz çalışır, veri hiçbir yere gitmez; dosyayı sen push edene
+kadar site değişmez.
+
+### Zor yol: dosyayı elle düzenlemek
+
+`data/atlas-data.js` içinde üç liste var:
+
+**`clans`** — klanlar
 
 ```js
-{ tag: "AGU", name: "Aghustos Ekibi", color: "#ffd166" }
+{ tag: "TPS", name: "The Perfect Squad", color: "#ffd166" }
 ```
 
-- `tag` → oyuncularda kullanacağın kısa kod
-- `color` → boş bırakırsan otomatik renk atanır
+`tag` sadece içeride kullanılan koddur, haritada `name` görünür.
 
-### 2) `videos` — videolar
+**`videos`** — videolar
 
 ```js
-{ id: "v12", title: "Klan Savaşı Geri Döndü", url: "https://youtube.com/watch?v=abc123", date: "2025-02-03", game: "PUBG" }
+{ id: "v12", title: "Klan Savaşı", url: "https://youtu.be/abc123", date: "2025-02-03", game: "PUBG" }
 ```
 
-- `id` → benzersiz kısa kod (`v12`, `gta-04`… fark etmez)
-- `date` → `YYYY-AA-GG` biçiminde; sıralama için kullanılır
-
-### 3) `players` — oyuncular
+**`players`** — oyuncular
 
 ```js
-{ name: "Kerem", clan: "KRT", videos: ["v1","v3","v4"], link: "https://youtube.com/@kerem", note: "İlk squad'ım" }
+{ name: "Kerem", clan: "TPS", videos: ["v1","v3","v4"], link: "", note: "" }
 ```
 
-- `videos` → oyuncunun göründüğü video id'leri.
-  **Boyut ve merkeze yakınlık bu listenin uzunluğundan otomatik hesaplanır.**
-- `clan` → klanı yoksa `""` bırak, "Bağımsız" grubuna düşer
-- `link` ve `note` → isteğe bağlı
+`videos` → oyuncunun göründüğü video id'leri.
+**Boyut ve merkeze yakınlık bu listenin uzunluğundan otomatik hesaplanır.**
+Klanı yoksa `clan: ""` bırak.
 
-Dosyayı kaydedip GitHub'a push'ladığında site kendiliğinden güncellenir.
-
-### Hızlı kontrol
-
-Video id'sini yanlış yazarsan o video sessizce atlanır; tarayıcı konsolunda
-(F12) hangi oyuncularda sorun olduğunu yazan bir uyarı görürsün.
+> En sık yapılan hata: `players` içindeki `clan` değerinin `clans` içindeki
+> hiçbir `tag` ile eşleşmemesi. O oyuncular sessizce gri “Bağımsız” olur.
+> Düzenleyici bunu yakalayıp tek tıkla düzeltir; elle yazarken dikkat et.
 
 ---
 
@@ -98,10 +117,13 @@ Video id'sini yanlış yazarsan o video sessizce atlanır; tarayıcı konsolunda
 ## 📁 Dosyalar
 
 ```
-index.html            sayfa iskeleti
+index.html            harita sayfası
+editor.html           veri düzenleyici
 assets/style.css      görünüm
-assets/atlas.js       görselleştirme motoru (dokunma gerekmez)
-data/atlas-data.js    ← SENİN DÜZENLEYECEĞİN DOSYA
+assets/atlas.js       harita motoru (dokunma gerekmez)
+assets/editor.css     düzenleyici görünümü
+assets/editor.js      düzenleyici motoru
+data/atlas-data.js    ← VERİ (düzenleyicinin ürettiği dosya)
 .nojekyll             GitHub Pages'in dosyaları olduğu gibi sunması için
 ```
 
