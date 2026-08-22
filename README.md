@@ -33,9 +33,15 @@ git push
 Yerelde denemek istersen:
 
 ```bash
-python -m http.server 8899
-# sonra tarayıcıda: http://127.0.0.1:8899
+python serve.py
+# Harita      : http://127.0.0.1:8899/
+# Düzenleyici : http://127.0.0.1:8899/editor.html
 ```
+
+`python -m http.server` **kullanma**: yanıtlarında `Cache-Control` başlığı
+olmadığı için tarayıcı JS/CSS dosyalarını önbellekte tutuyor ve dosyayı
+değiştirsen bile sayfa eski hâlini gösteriyor. `serve.py` her yanıta
+`no-store` ekler, düz F5 bile en son hâli getirir.
 
 ---
 
@@ -124,6 +130,7 @@ yazsan bile aynı kişiyi bulur, ikinci bir kayıt açmaz.
 ## 📁 Dosyalar
 
 ```
+serve.py              yerel önizleme sunucusu (önbelleksiz)
 index.html            harita sayfası
 editor.html           veri düzenleyici
 assets/style.css      görünüm
