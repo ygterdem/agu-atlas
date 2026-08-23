@@ -1,0 +1,7 @@
+# Düzenleyici yalnızca yerelde çalışır: main dalında olsaydı GitHub Pages
+# onu da yayınlardı. Dosyalar diskte duruyor (serve.py sunuyor), yedeği
+# "editor" dalında. Geri getirmek için:
+#   git checkout editor -- editor.html assets/editor.js assets/editor.css
+editor.html
+assets/editor.js
+assets/editor.css

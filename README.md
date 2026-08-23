@@ -37,12 +37,20 @@ eski JS'i önbellekten veriyor.
 ## Dosyalar
 
 ```
-index.html / editor.html    harita ve düzenleyici sayfaları
+index.html                  harita sayfası
 assets/atlas.js             harita motoru
-assets/editor.js            düzenleyici motoru
 data/atlas-data.js          ← VERİ (düzenleyicinin ürettiği dosya)
 serve.py                    yerel önizleme sunucusu (önbelleksiz)
 tests/                      tarayıcıda koşan testler
+```
+
+Düzenleyici (`editor.html`, `assets/editor.*`) **`main` dalında değil**:
+GitHub Pages `main`'i olduğu gibi yayınladığı için orada durmak, düzenleyiciyi
+herkese açmak demekti. Dosyalar diskte duruyor ve `serve.py` onları sunuyor;
+yedekleri `editor` dalında. Yeni bir kopya çıkarırsan:
+
+```bash
+git checkout editor -- editor.html assets/editor.js assets/editor.css
 ```
 
 Tek dış bağımlılık D3.js (CDN). Derleme adımı yok.

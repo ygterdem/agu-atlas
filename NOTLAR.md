@@ -12,6 +12,16 @@ Son güncelleme: 23 Ağustos 2026 — veri: 733 oyuncu, 115 video, 63 klan, 10 t
 - Harita: https://ygterdem.github.io/agu-atlas/
 - Repo: https://github.com/ygterdem/agu-atlas
 
+**Düzenleyici yayında değil.** GitHub Pages `main` dalını olduğu gibi
+sunuyor; `editor.html` orada dursaydı adresi bilen herkes veriyi
+düzenleyebilirdi. Bu yüzden düzenleyici dosyaları `main`'den çıkarıldı
+(`.gitignore`'da) ve yalnızca diskte duruyor — `serve.py` onları yerelde
+sunuyor. Yedekleri `editor` dalında; yeni bir kopya çıkarınca geri getir:
+
+```bash
+git checkout editor -- editor.html assets/editor.js assets/editor.css
+```
+
 Yerelde: `python serve.py` → http://127.0.0.1:8899
 (`python -m http.server` **kullanma**: `Cache-Control` göndermediği için
 tarayıcı eski JS'i önbellekten veriyor, "değişiklik görünmüyor" derdi oradan

@@ -52,3 +52,13 @@ Testler `data/atlas-data.js` dosyasına dokunmaz; kendi sentetik verilerini
 enjekte ederler. Sadece `mk_actest.py` ile `mk_clantest.py` senin gerçek
 verinle çalışır (düzenleyicinin yüklediği veri) — bu yüzden sonuçları
 verinin durumuna göre değişebilir.
+
+---
+
+**Not:** düzenleyici testleri (`mk_actest.py`, `mk_clantest.py`) `editor.html`
+ve `assets/editor.js` dosyalarını okur. Bunlar `main` dalında yok; yeni bir
+kopya çıkardıysan önce geri getir:
+
+```bash
+git checkout editor -- editor.html assets/editor.js assets/editor.css
+```
