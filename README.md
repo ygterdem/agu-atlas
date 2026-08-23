@@ -13,49 +13,5 @@ oynayanlar haritada kendiliğinden bir küme oluşturur.
 
 ---
 
-## Veri nasıl güncellenir
-
-1. `python serve.py` ile düzenleyiciyi aç
-   (http://127.0.0.1:8899/editor.html), **Kadro** sekmesinden video seç ve
-   oyuncuları yaz.
-2. **Kaydet** sekmesinden `atlas-data.js indir`.
-3. İnen dosyayı `data/atlas-data.js` üzerine yaz.
-4. `git add -A && git commit -m "yeni oyuncular" && git push`
-
-GitHub Pages `main` dalından yayın yapıyor; push'tan 1-2 dakika sonra site
-güncellenir. Düzenleyici sunucusuz çalışır, veri hiçbir yere gitmez.
-
-## Yerelde çalıştırmak
-
-```bash
-python serve.py     # http://127.0.0.1:8899/
-```
-
-`python -m http.server` kullanma: `Cache-Control` göndermediği için tarayıcı
-eski JS'i önbellekten veriyor.
-
-## Dosyalar
-
-```
-index.html                  harita sayfası
-assets/atlas.js             harita motoru
-data/atlas-data.js          ← VERİ (düzenleyicinin ürettiği dosya)
-serve.py                    yerel önizleme sunucusu (önbelleksiz)
-tests/                      tarayıcıda koşan testler
-```
-
-Düzenleyici (`editor.html`, `assets/editor.*`) **`main` dalında değil**:
-GitHub Pages `main`'i olduğu gibi yayınladığı için orada durmak, düzenleyiciyi
-herkese açmak demekti. Dosyalar diskte duruyor ve `serve.py` onları sunuyor;
-yedekleri `editor` dalında. Yeni bir kopya çıkarırsan:
-
-```bash
-git checkout editor -- editor.html assets/editor.js assets/editor.css
-```
-
-Tek dış bağımlılık D3.js (CDN). Derleme adımı yok.
-
----
-
 Kararlar, ayar düğmeleri, veri modeli ve geliştirme notları:
 **[NOTLAR.md](NOTLAR.md)**
