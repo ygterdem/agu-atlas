@@ -7,6 +7,20 @@ Son güncelleme: 23 Ağustos 2026 — veri: 916 oyuncu, 165 video, 72 klan, 10 t
 
 ---
 
+**Bu dosya yayında değil.** `editor.html` gibi `main` dalından çıkarıldı
+(`.gitignore`'da); GitHub Pages `main`'i olduğu gibi sunduğu için burada
+dursaydı `.../NOTLAR.md` adresinden okunurdu. Diskte duruyor, yedeği
+`notlar` dalında. Yeni bir kopya çıkarınca geri getir:
+
+```bash
+git checkout notlar -- NOTLAR.md
+```
+
+> Dikkat: bu dosya artık `main`'de takip edilmiyor. Değişiklikleri
+> yedeklemek için ara sıra `notlar` dalına işlemek gerekiyor.
+
+---
+
 ## Site nerede
 
 - Harita: https://ygterdem.github.io/agu-atlas/
@@ -223,6 +237,13 @@ Bir daha aynı yere düşmemek için:
 - **Yerelde değişiklik görünmüyordu.** Sunucu `Cache-Control` göndermiyordu,
   `serve.py` bunu çözdü.
 - **Etiketler üst üste biniyordu.** Yeri dolu olan ismini göstermiyor.
+- **Gizlenen oyuncuların çizgileri kalıyordu.** Efsaneden bir klanı
+  kapatınca baloncuklar kayboluyor ama onlara giden bağlar boşluğa asılı
+  duruyordu: `render()` bağ yolunu yeniden çizmiyordu, süzgeç sadece
+  `<g>`'lerin `display`'ini değiştiriyordu. `drawHub()` ayrıldı ve hem
+  `render()` hem `applyTime()` içinden çağrılıyor; süzgeç artık
+  `isVisible` bakıyor. Seçili kişinin vurgulu bağları da gizlenenleri
+  atlıyor.
 - **Yana yazılan isimler karıştırıyordu.** Sağa/sola/köşegene yazılan isim
   yanındaki baloncuğa aitmiş gibi duruyordu. Punto 11'den 9'a indi ve isim
   yalnızca alta yazılır oldu.

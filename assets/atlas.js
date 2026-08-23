@@ -487,8 +487,14 @@
     draw();
   }
 
+  // Bana giden bağlar: yalnızca GÖRÜNEN oyuncular için çizilir. Yoksa bir
+  // klanı efsaneden kapattığında baloncuklar kayboluyor ama onlara giden
+  // çizgiler boşluğa doğru asılı kalıyordu.
+  function drawHub() {
+    hubPath.attr("d", edgePath(hubLinks.filter(function (l) { return isVisible(l.target); })));
+  }
   function draw() {
-    hubPath.attr("d", edgePath(hubLinks.filter(function (l) { return l.target.count > 0; })));
+    drawHub();
     var pos = function (d) { return "translate(" + d.x + "," + d.y + ")"; };
     node.attr("transform", pos);
     label.attr("transform", pos);
@@ -721,14 +727,19 @@
     node.style("display", vis).classed("faded", fade);
     // İsimler ayrı katmanda; aynı gizleme/soldurma onlara da uygulanmalı.
     label.style("display", vis).classed("faded", fade);
+    // Görünürlük değişmiş olabilir (klan süzgeci, zaman çizgisi): bağları
+    // yeniden çiz, gizlenenlere giden çizgi kalmasın.
+    drawHub();
     // Bağ katmanı: tek tek değil topluca sönümlenir (15 binden fazla bağ var).
     var dim = !!(state.query || state.selected);
     gHub.attr("opacity", dim ? 0.3 : 1);
 
-    // Seçili oyuncunun bağları öne çıkar.
-    if (state.selected && playerById[state.selected]) {
+    // Seçili oyuncunun bağları öne çıkar. Gizlenmiş kişiye giden bağ çizilmez.
+    if (state.selected && playerById[state.selected] && isVisible(playerById[state.selected])) {
       var sel = playerById[state.selected];
-      var mine = coLinks.filter(function (l) { return l.source === sel || l.target === sel; });
+      var mine = coLinks.filter(function (l) {
+        return (l.source === sel || l.target === sel) && isVisible(l.source) && isVisible(l.target);
+      });
       mine = mine.concat(hubLinks.filter(function (l) { return l.target === sel; }));
       hiPath.attr("stroke", sel.color).attr("d", edgePath(mine));
     } else {
@@ -1110,7 +1121,7 @@
     tActive = act;
     center.count = activeVideos();
     node.select("circle.bub").attr("r", function (d) { return d.isCenter ? CFG.R_CENTER : d.r; });
-    hubPath.attr("d", edgePath(hubLinks.filter(function (l) { return l.target.count > 0; })));
+    drawHub();
     // Seçili kişi o tarihte henüz yoksa paneli kapat.
     if (state.selected && playerById[state.selected] && !playerById[state.selected].count) {
       select(null);
