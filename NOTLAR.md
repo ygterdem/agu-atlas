@@ -3,7 +3,7 @@
 Bu dosya, projenin nasıl çalıştığını ve **neden öyle çalıştığını** kaydeder.
 Kullanım talimatları `README.md` içinde; burada kararlar ve ayar düğmeleri var.
 
-Son güncelleme: 23 Ağustos 2026 — veri: 733 oyuncu, 115 video, 63 klan, 10 takım.
+Son güncelleme: 23 Ağustos 2026 — veri: 916 oyuncu, 165 video, 72 klan, 10 takım.
 
 ---
 
@@ -82,8 +82,13 @@ geliyor.
 
 Alttaki çubuk haritayı **o tarihteki hâline** döndürür: o güne kadar hiç
 oynamamışlar kaybolur, kalanların baloncuğu o günkü video sayısı kadar olur.
-Adımlar videoların **ayrı tarihleri** (bu veride 108 durak); `▶` 220ms'de bir
+Adımlar videoların **ayrı tarihleri** (bu veride 158 durak); `▶` 220ms'de bir
 ilerler.
+
+İlk durak bir videoya denk gelmez: ilk videodan **bir gün öncesi** (16 Eki
+2022). Orada haritada sadece merkez var, kimse yok — topluluk gerçekten
+sıfırdan başlıyor. İlk durak ilk video olsaydı çubuğu sonuna kadar geri
+çektiğinde harita zaten 21 kişiyle dolu görünürdü.
 
 Kritik karar: **yerleşim yeniden hesaplanmaz.** Kuvvet simülasyonu tüm veriyle
 bir kez koşup dondurulmuştu, zaman çizgisi konumlara hiç dokunmuyor. Her adımda
@@ -97,7 +102,7 @@ kaybolurdu.
 Zamana uyanlar: baloncukların varlığı ve boyutu, isim eşiği, alt bardaki
 sayılar, efsanedeki klan sayıları, detay panelindeki her şey (video listesi,
 "en çok birlikte oynadıkları", klan/takım arkadaşları, yüzde). Çubuk sondayken
-her şey eskisiyle birebir aynı — 733 oyuncu, 115 video, 63 klan.
+her şey eskisiyle birebir aynı — 916 oyuncu, 165 video, 72 klan.
 
 Bir ayrıntı: erken tarihlerde toplulukta `LABEL_ALL_UNDER` (120) kişiden az
 varsa isim eşiği uygulanmaz, herkesin adı yazılır. Yoksa 2022'de haritada 21

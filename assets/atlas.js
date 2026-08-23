@@ -1059,8 +1059,20 @@
     (DATA.videos || []).forEach(function (v) {
       if (v.date && !seen[v.date]) { seen[v.date] = 1; out.push(v.date); }
     });
-    return out.sort();
+    out.sort();
+    // Sıfırdan başla: ilk videodan bir gün öncesi de bir durak. O noktada
+    // haritada sadece ben varım, kimse yok. Çubuğu ilk kademeye çekince
+    // topluluk gerçekten boştan başlıyor — ilk durak ilk video olsaydı
+    // harita daha açılır açılmaz 21 kişiyle dolu görünürdü.
+    if (out.length) out.unshift(dayBefore(out[0]));
+    return out;
   }());
+  function dayBefore(d) {
+    var q = String(d).split("-");
+    var t = new Date(Date.UTC(+q[0], (+q[1]) - 1, (+q[2])) - 86400000);
+    function iki(n) { return (n < 10 ? "0" : "") + n; }
+    return t.getUTCFullYear() + "-" + iki(t.getUTCMonth() + 1) + "-" + iki(t.getUTCDate());
+  }
   state.tIdx = timeStops.length ? timeStops.length - 1 : 0;
   var tActive = players.length;
 
