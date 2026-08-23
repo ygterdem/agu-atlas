@@ -10,13 +10,13 @@ oynayanlar haritada kendiliğinden bir küme oluşturur.
 - **Alttaki çubuk** = zaman çizgisi; haritayı o tarihteki hâline döndürür
 
 **Site:** https://ygterdem.github.io/agu-atlas/
-**Düzenleyici:** https://ygterdem.github.io/agu-atlas/editor.html
 
 ---
 
 ## Veri nasıl güncellenir
 
-1. Düzenleyiciyi aç (haritadaki ✎ butonu), **Kadro** sekmesinden video seç ve
+1. `python serve.py` ile düzenleyiciyi aç
+   (http://127.0.0.1:8899/editor.html), **Kadro** sekmesinden video seç ve
    oyuncuları yaz.
 2. **Kaydet** sekmesinden `atlas-data.js indir`.
 3. İnen dosyayı `data/atlas-data.js` üzerine yaz.

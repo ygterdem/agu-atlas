@@ -10,7 +10,6 @@ Son güncelleme: 23 Ağustos 2026 — veri: 733 oyuncu, 115 video, 63 klan, 10 t
 ## Site nerede
 
 - Harita: https://ygterdem.github.io/agu-atlas/
-- Düzenleyici: https://ygterdem.github.io/agu-atlas/editor.html
 - Repo: https://github.com/ygterdem/agu-atlas
 
 Yerelde: `python serve.py` → http://127.0.0.1:8899
@@ -183,7 +182,8 @@ Hepsi `assets/atlas.js` en üstteki `CFG` bloğunda.
 
 ## Nasıl güncelleniyor
 
-1. Düzenleyiciyi aç (haritadaki ✎ butonu).
+1. `python serve.py` ile düzenleyiciyi aç: http://127.0.0.1:8899/editor.html
+   (haritada ona giden bir bağlantı yok, kasıtlı).
 2. **Kadro** sekmesi: video seç, isim yaz + Enter. Asıl iş burada.
 3. **Kaydet** sekmesi: hataları kontrol et, `atlas-data.js indir`.
 4. İnen dosyayı `data/atlas-data.js` üzerine yaz.
