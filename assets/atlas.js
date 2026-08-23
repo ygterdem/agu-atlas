@@ -10,17 +10,27 @@
   var CFG = {
     R_NEAR: 130,       // en son birlikte oynadıklarımın merkeze uzaklığı
     R_FAR: 620,        // uzun zamandır oynamadıklarımın merkeze uzaklığı
-    BUBBLE_PAD: 4,     // baloncuklar arası boşluk
+    BUBBLE_PAD: 6,     // baloncuklar arası boşluk (isimlere yer açar)
     RECENCY_PULL: 0.22,// merkeze uzaklık ne kadar tarihe uysun (0 = sadece kümeler)
     TEAM_MIN: 4,       // kaç kişilik public grubu kendi rengini alsın
     HUB_ALPHA: 0.11,   // bana giden bağların görünürlüğü
     HUB_PULL: 0.20,    // bana giden bağların çekim gücü
     CHARGE: -70,       // baloncukların birbirini itmesi (küme aralığı)
-    R_MIN: 10,         // en az videoda çıkanın baloncuk yarıçapı
-    R_MAX: 34,         // en çok videoda çıkanın baloncuk yarıçapı
-    R_CENTER: 46,      // merkez baloncuk yarıçapı
+    R_MIN: 9,          // en az videoda çıkanın baloncuk yarıçapı
+    R_MAX: 58,         // en çok videoda çıkanın baloncuk yarıçapı
+    R_POW: 0.78,       // boyut eğrisi. 0.5 = alan orantılı (üst uçta fark silinir),
+                       // 1 = yarıçap orantılı (fark abartılır). 0.78 ikisinin arası:
+                       // 47 video ile 28 video gözle ayrılır, 1 videoluk kalabalık
+                       // yine küçük kalır.
+    R_CENTER: 66,      // merkez baloncuk yarıçapı (en büyük oyuncudan büyük kalsın)
     CENTER_LOGO: "assets/Aghustos Logo Black.png",  // ortadaki logo (data.center.logo ile değiştirilebilir)
-    LABEL_MIN_R: 13,   // bu yarıçapın altındakilerin ismi normalde gizli
+    LABEL_FONT: 9,     // isim puntosu. Küçültmek kalabalığı seyreltir ve
+                       // daha çok ismin sığmasını sağlar
+    LABEL_MIN_VIDEOS: 2, // bu kadar videodan az çıkanın ismi normalde gizli
+    LABEL_ALL_UNDER: 120, // zaman çizgisi geride ve toplulukta bu kadar az kişi
+                       // varsa eşiği uygulama, herkesin ismini yaz
+                       // (yarıçapa bağlamak yanlıştı: boyut eğrisini her
+                       // değiştirdiğinde kaç isim göründüğü de kayıyordu)
     PUBLIC_GROUP_MIN: 2, // kaç ayrı videoda birlikte oynayanlar aynı grup sayılsın
     PALETTE: ["#ffd166", "#ff5c8a", "#5cc8ff", "#8bd450", "#b18cff",
               "#ff9f45", "#4ecdc4", "#e05be0", "#7ea6ff", "#d4b483"],
@@ -96,8 +106,9 @@
 
   // Bir oyuncunun en çok birlikte oynadıkları (kaç ayrı videoda birlikte).
   function coPlayers(p) {
-    var cnt = {};
+    var cut = timeCut(), cnt = {};
     p.videos.forEach(function (v) {
+      if (videoDateOf(v) > cut) return;      // zaman çizgisinden sonraki video
       (videoRoster[v] || []).forEach(function (o) {
         if (o.id !== p.id) cnt[o.id] = (cnt[o.id] || 0) + 1;
       });
@@ -123,7 +134,8 @@
   // Efsanedeki (legend) liste, takımlar bulunduktan sonra kurulacak.
 
   var maxCount = d3.max(players, function (d) { return d.count; }) || 1;
-  var rScale = d3.scaleSqrt().domain([1, Math.max(2, maxCount)]).range([CFG.R_MIN, CFG.R_MAX]).clamp(true);
+  var rScale = d3.scalePow().exponent(CFG.R_POW)
+    .domain([1, Math.max(2, maxCount)]).range([CFG.R_MIN, CFG.R_MAX]).clamp(true);
 
   // Her oyuncunun birlikte oynadığımız ilk/son video tarihi.
   players.forEach(function (p) {
@@ -132,6 +144,8 @@
       .filter(Boolean).sort();
     p.lastDate = ds.length ? ds[ds.length - 1] : "";
     p.firstDate = ds.length ? ds[0] : "";
+    p.dates = ds;                   // zaman çizgisi bunu tarıyor (sıralı)
+    p.total = p.count;              // tüm zamanların sayısı; p.count "o tarihe kadar"
     p.r = rScale(p.count);          // BOYUT: kaç videoda oynadığı
   });
 
@@ -348,6 +362,11 @@
   var root = svg.append("g").attr("class", "root");
   var gRings = root.append("g").attr("class", "rings");
   var gNodes = root.append("g").attr("class", "nodes");
+  // İsimler baloncuklarla aynı <g> içindeyken kendilerinden sonra çizilen
+  // baloncukların altında kalıyordu ("Mavili1211" yerine "Mavil...11").
+  // Ayrı ve en üstteki katmana alındılar; hepsi her şeyin üstüne biniyor.
+  var gLabels = root.append("g").attr("class", "labels")
+    .style("font-size", CFG.LABEL_FONT + "px");   // CFG tek kaynak olsun
 
   // merkezden dışa doğru yoğunluk halkaları
   // 15 binden fazla çizgiyi tek tek DOM'a koymak ağır olurdu; aynı renkteki
@@ -420,7 +439,12 @@
       .attr("pointer-events", "none");
   })();
 
-  node.append("text")
+  // Etiketin kendi <g>'si baloncuğun konumuna taşınır; applyLabelRule ise
+  // x/y'yi baloncuğa göre uzaklık olarak yazar. Böylece yerleştirme hesabı
+  // yine dünya koordinatlarında ve baloncuk merkezli kalıyor.
+  var label = gLabels.selectAll("text").data(nodes, function (d) { return d.id; })
+    .join("text")
+    .attr("class", function (d) { return "lbl" + (d.isCenter ? " center" : ""); })
     .attr("text-anchor", "middle")
     .attr("x", 0)
     .attr("y", function (d) { return d.r + 13; })
@@ -464,8 +488,10 @@
   }
 
   function draw() {
-    hubPath.attr("d", edgePath(hubLinks));
-    node.attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; });
+    hubPath.attr("d", edgePath(hubLinks.filter(function (l) { return l.target.count > 0; })));
+    var pos = function (d) { return "translate(" + d.x + "," + d.y + ")"; };
+    node.attr("transform", pos);
+    label.attr("transform", pos);
   }
 
   // -------------------------------------------------------------- zoom & fit
@@ -473,7 +499,7 @@
   var zoom = d3.zoom().scaleExtent([0.12, 6]).on("zoom", function (ev) {
     if (ev.sourceEvent) userMoved = true;
     root.attr("transform", ev.transform);
-    gNodes.selectAll("text").attr("opacity", ev.transform.k < 0.32 ? 0 : 1);
+    label.attr("opacity", ev.transform.k < 0.32 ? 0 : 1);
   });
   svg.call(zoom).on("dblclick.zoom", null);
 
@@ -511,6 +537,7 @@
 
   function isVisible(d) {
     if (d.isCenter) return true;
+    if (d.count < 1) return false;          // o tarihte henüz ortada yok
     if (d.teamTag) return !state.hidden[d.teamTag];
     return !state.hidden[d.clan];
   }
@@ -527,39 +554,128 @@
   function overlaps(a, b) {
     return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
   }
+  function overlapArea(a, b) {
+    var w = Math.min(a[2], b[2]) - Math.max(a[0], b[0]);
+    var h = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+
+  // 700+ baloncuğa karşı 8 aday konumu tek tek denemek her fare hareketinde
+  // milyonlarca karşılaştırma demek. Baloncukları kaba bir ızgaraya atıp
+  // sadece etiketin düştüğü hücrelere bakıyoruz.
+  var GRID = 70;
+  function gridOf(boxes) {
+    var g = {};
+    boxes.forEach(function (b) {
+      for (var cx = Math.floor(b[0] / GRID); cx <= Math.floor(b[2] / GRID); cx++) {
+        for (var cy = Math.floor(b[1] / GRID); cy <= Math.floor(b[3] / GRID); cy++) {
+          (g[cx + ":" + cy] || (g[cx + ":" + cy] = [])).push(b);
+        }
+      }
+    });
+    return g;
+  }
+  function gridPenalty(g, box) {
+    var seen = [], pen = 0;
+    for (var cx = Math.floor(box[0] / GRID); cx <= Math.floor(box[2] / GRID); cx++) {
+      for (var cy = Math.floor(box[1] / GRID); cy <= Math.floor(box[3] / GRID); cy++) {
+        var cell = g[cx + ":" + cy];
+        if (!cell) continue;
+        for (var i = 0; i < cell.length; i++) {
+          if (seen.indexOf(cell[i]) !== -1) continue;
+          seen.push(cell[i]);
+          pen += overlapArea(box, cell[i]);
+        }
+      }
+    }
+    return pen;
+  }
+  // Kutu ölçüleri puntodan türetilir; CFG.LABEL_FONT'u değiştirince
+  // yerleşim hesabı da kendiliğinden uyar.
+  var LF = CFG.LABEL_FONT;
+  function labelWidth(name) { return name.length * LF * 0.535 + 6; }
   function labelBox(ox, oy, w, anchor) {
-    if (anchor === "start") return [ox - 2, oy - 11, ox + w, oy + 3];
-    if (anchor === "end") return [ox - w, oy - 11, ox + 2, oy + 3];
-    return [ox - w / 2, oy - 11, ox + w / 2, oy + 3];
+    var up = LF, dn = LF * 0.28;
+    if (anchor === "start") return [ox - 2, oy - up, ox + w, oy + dn];
+    if (anchor === "end") return [ox - w, oy - up, ox + 2, oy + dn];
+    return [ox - w / 2, oy - up, ox + w / 2, oy + dn];
+  }
+
+  // Baloncuk yeterince büyükse ismi İÇİNE yazarız. Dışarı yazılınca büyük
+  // baloncuğun ismi yanındaki küçüğün ismiymiş gibi okunuyordu. Sığmıyorsa
+  // (uzun isim, küçük baloncuk) 0 döner, isim yine dışarı yazılır.
+  function insideFontSize(p) {
+    if (p.r < 22) return 0;
+    var fit = (2 * p.r - 14) / Math.max(1, p.name.length * 0.55);
+    var fs = Math.min(p.r * 0.44, 19, fit);
+    return fs >= 10 ? Math.round(fs * 10) / 10 : 0;
+  }
+  // Baloncuğun rengi açıksa koyu, koyuysa açık yaz.
+  function inkOn(hex) {
+    var c = d3.color(hex);
+    if (!c) return "#0b0e1a";
+    return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255 > 0.55 ? "#0b0e1a" : "#f2f5ff";
   }
 
   function applyLabelRule() {
-    var show = {}, taken = [];
+    var show = {}, taken = [], bubbles = [];
 
-    // Baloncukların kendisi de doludur: etiket hiçbirinin üstüne binmesin.
-    nodes.forEach(function (n) {
-      if (!isVisible(n)) return;
-      taken.push([n.x - n.r, n.y - n.r, n.x + n.r, n.y + n.r]);
-    });
+    // İki ayrı kısıt var, ve bunları ayırmak önemli:
+    //   · etiket etiketin üstüne ASLA binmez — iki isim üst üste okunmaz.
+    //   · etiket baloncuğun üstüne binmesin, ama şartsa binebilir. Baloncuklar
+    //     bu yoğunlukta o kadar sıkışık ki "hiç binmesin" demek isimlerin
+    //     neredeyse tamamını yutuyordu. Metnin koyu konturu sayesinde baloncuk
+    //     üstünde de okunuyor; o yüzden örtüşme yasak değil, puanlanıyor ve
+    //     en az örtüşen konum seçiliyor.
+    var outside = [];
+    players.forEach(function (p) { p.lin = 0; p.lfs = 0; });
 
+    // Sıra video sayısına göre: en çok oynayan yerini ilk seçer.
     var order = players.slice().sort(function (a, b) {
       return b.count - a.count || b.r - a.r || a.name.localeCompare(b.name, "tr");
     });
+
+    // 1. tur — kimin ismi görünecek, ve büyüklerde isim içeri sığıyor mu?
     order.forEach(function (p) {
       if (!isVisible(p)) return;
       var must = state.selected === p.id || state.hover === p.id ||
                  (state.query && matches(p));
-      if (!must && !state.allLabels && p.r < CFG.LABEL_MIN_R) return;
+      if (!must && !state.allLabels && p.count < CFG.LABEL_MIN_VIDEOS &&
+          tActive > CFG.LABEL_ALL_UNDER) return;
       if (!must && !matches(p)) return;
+      p.lmust = must;
+      p.lfs = insideFontSize(p);
+      if (p.lfs) {
+        p.lin = 1; p.lx = 0; p.ly = p.lfs * 0.35; p.la = "middle";
+        show[p.id] = 1;                       // yeri garanti, yarışmaya girmez
+      } else {
+        outside.push(p);
+      }
+    });
 
-      var w = p.name.length * 5.9 + 8;
+    // 2. tur — kısıtlar. İsmi içine yazılmış baloncuklar da dokunulmaz:
+    // üstlerine başka bir isim düşerse o isim onlarınmış gibi okunuyor.
+    nodes.forEach(function (n) {
+      if (!isVisible(n)) return;
+      var b = [n.x - n.r, n.y - n.r, n.x + n.r, n.y + n.r];
+      if (n.isCenter || n.lin) taken.push(b);
+      else bubbles.push(b);
+    });
+    var bubbleGrid = gridOf(bubbles);
+
+    // 3. tur — kalan isimleri baloncuğun dışına yerleştir.
+    outside.forEach(function (p) {
+      var must = p.lmust;
+      var w = labelWidth(p.name);
+      // İsim HER ZAMAN baloncuğun altında ve ortalanmış. Tek konum, tek kural.
+      // Yana yazılanlar yanındaki baloncuğun ismi sanılıyordu; üste/alta
+      // dönüşümlü yazmak da göz için tahmin edilemez oluyordu. Tek yer =
+      // isme baktığın anda hangi baloncuğun olduğunu biliyorsun.
+      // Bedeli: yeri dolu olanın ismi görünmüyor, başka yere kaçamıyor.
       var cands = [
-        { x: 0, y: p.r + 13, a: "middle" },
-        { x: 0, y: -p.r - 7, a: "middle" },
-        { x: p.r + 7, y: 4, a: "start" },
-        { x: -p.r - 7, y: 4, a: "end" }
+        { x: 0, y: p.r + LF + 2, a: "middle" }
       ];
-      var chosen = null;
+      var chosen = null, chosenBox = null, best = Infinity;
       for (var i = 0; i < cands.length; i++) {
         var c = cands[i];
         var box = labelBox(p.x + c.x, p.y + c.y, w, c.a);
@@ -567,36 +683,44 @@
         for (var j = 0; j < taken.length; j++) {
           if (overlaps(box, taken[j])) { clash = true; break; }
         }
-        if (!clash) { chosen = c; taken.push(box); break; }
+        if (clash) continue;                     // başka bir isim orada: olmaz
+        var pen = gridPenalty(bubbleGrid, box);
+        if (pen < best) { best = pen; chosen = c; chosenBox = box; }
+        if (pen === 0) break;                    // tertemiz yer, daha iyisi yok
       }
       if (!chosen) {
-        if (!must) return;                       // yer yoksa gizle
-        chosen = cands[0];                       // seçili/aranan isim her hâlükârda görünsün
-        taken.push(labelBox(p.x + chosen.x, p.y + chosen.y, w, chosen.a));
+        if (!must) return;                       // sekiz yön de dolu: gizle
+        chosen = cands[0];                       // seçili/aranan isim yine de görünsün
+        chosenBox = labelBox(p.x + chosen.x, p.y + chosen.y, w, chosen.a);
       }
+      taken.push(chosenBox);
       p.lx = chosen.x; p.ly = chosen.y; p.la = chosen.a;
       show[p.id] = 1;
     });
 
-    gNodes.selectAll("g.node").select("text")
+    label
       .attr("x", function (d) { return d.isCenter ? 0 : (d.lx || 0); })
       .attr("y", function (d) { return d.isCenter ? d.r + 13 : (d.ly == null ? d.r + 13 : d.ly); })
-      .attr("text-anchor", function (d) { return d.isCenter ? "middle" : (d.la || "middle"); });
-
-    gNodes.selectAll("g.node").select("text").classed("hide-label", function (d) {
-      return d.isCenter ? false : !show[d.id];
-    });
+      .attr("text-anchor", function (d) { return d.isCenter ? "middle" : (d.la || "middle"); })
+      .classed("inside", function (d) { return !d.isCenter && !!d.lin; })
+      // attr() değil style(): CSS'teki .lbl{fill,font-size} sunum
+      // özniteliklerini ezer, satır içi stil ise CSS'i ezer.
+      .style("font-size", function (d) { return (!d.isCenter && d.lin) ? d.lfs + "px" : null; })
+      .style("fill", function (d) { return (!d.isCenter && d.lin) ? inkOn(d.color) : null; })
+      .classed("hide-label", function (d) { return d.isCenter ? false : !show[d.id]; });
   }
 
   function render() {
-    node
-      .style("display", function (d) { return isVisible(d) ? null : "none"; })
-      .classed("faded", function (d) {
-        if (d.isCenter) return false;
-        if (!matches(d)) return true;
-        if (state.query) return false;   // arama varken seçim soldurmasın
-        return !!(state.selected && state.selected !== d.id && !isNeighbourOfSelected(d));
-      });
+    var vis = function (d) { return isVisible(d) ? null : "none"; };
+    var fade = function (d) {
+      if (d.isCenter) return false;
+      if (!matches(d)) return true;
+      if (state.query) return false;   // arama varken seçim soldurmasın
+      return !!(state.selected && state.selected !== d.id && !isNeighbourOfSelected(d));
+    };
+    node.style("display", vis).classed("faded", fade);
+    // İsimler ayrı katmanda; aynı gizleme/soldurma onlara da uygulanmalı.
+    label.style("display", vis).classed("faded", fade);
     // Bağ katmanı: tek tek değil topluca sönümlenir (15 binden fazla bağ var).
     var dim = !!(state.query || state.selected);
     gHub.attr("opacity", dim ? 0.3 : 1);
@@ -710,13 +834,18 @@
   }
 
   function playerPanel(d) {
+    // Panel de zaman çizgisine uyar: haritada 2023'e bakarken panelin 2026
+    // rakamlarını göstermesi kafa karıştırırdı.
+    var cut = timeCut();
     var vids = d.videos.map(function (id) { return videoById[id]; })
+      .filter(function (v) { return v && (v.date || "") <= cut; })
       .sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
     var mates = players.filter(function (p) {
-      return (d.teamTag ? p.teamTag === d.teamTag : (!p.teamTag && p.clan === d.clan)) && p.id !== d.id;
+      return p.count > 0 && p.id !== d.id &&
+        (d.teamTag ? p.teamTag === d.teamTag : (!p.teamTag && p.clan === d.clan));
     })
       .sort(function (a, b) { return b.count - a.count; });
-    var share = Math.round(d.count / ((DATA.videos || []).length || 1) * 100);
+    var share = Math.round(d.count / (activeVideos() || 1) * 100);
 
     var h = "<h2 class='p-name'>" + esc(d.name) + "</h2>" +
       "<span class='p-clan' style='background:" + d.color + "22;color:" + d.color + "'>" + esc(d.clanName) + "</span>";
@@ -786,15 +915,19 @@
   }
 
   function centerPanel() {
-    var top = players.slice().sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name, "tr"); }).slice(0, 8);
-    var recent = (DATA.videos || []).slice().sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); }).slice(0, 5);
+    var cut = timeCut();
+    var top = players.filter(function (p) { return p.count > 0; })
+      .sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name, "tr"); }).slice(0, 8);
+    var recent = (DATA.videos || []).filter(function (v) { return (v.date || "") <= cut; })
+      .sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); }).slice(0, 5);
     var h = "<h2 class='p-name'>" + esc(center.name) + "</h2>" +
       "<span class='p-clan' style='background:" + center.color + "22;color:" + center.color + "'>" + esc(center.subtitle || "Merkez") + "</span>";
     if (center.channel) h += "<a class='p-link' href='" + esc(center.channel) + "' target='_blank' rel='noopener'>YouTube kanalım →</a>";
     h += "<div class='p-stats'>" +
-      "<div class='p-stat'><b>" + players.length + "</b><span>Oyuncu</span></div>" +
-      "<div class='p-stat'><b>" + (DATA.videos || []).length + "</b><span>Video</span></div>" +
-      "<div class='p-stat'><b>" + clanList.length + "</b><span>Klan</span></div>" +
+      "<div class='p-stat'><b>" + players.filter(function (p) { return p.count > 0; }).length +
+        "</b><span>Oyuncu</span></div>" +
+      "<div class='p-stat'><b>" + activeVideos() + "</b><span>Video</span></div>" +
+      "<div class='p-stat'><b>" + activeClans() + "</b><span>Klan</span></div>" +
       "</div>";
     h += "<div class='p-sec'>En çok birlikte oynadıklarım</div><div class='chips'>" +
       top.map(function (m) {
@@ -820,7 +953,20 @@
 
   // -------------------------------------------------------------------- legend
   var legendBox = document.getElementById("legend-list");
+  // Efsanedeki sayılar da zaman çizgisine uyar; alt bar "45 video" derken
+  // solda tüm zamanların sayısının durması kafa karıştırırdı. Satırlar
+  // kaybolmaz (henüz kimsesi yoksa 0 yazar) — süzgeç olarak yerinde kalsınlar.
+  function legendCounts() {
+    var m = {};
+    players.forEach(function (p) {
+      if (!p.count) return;
+      var t = p.teamTag || p.clan;
+      m[t] = (m[t] || 0) + 1;
+    });
+    return m;
+  }
   function renderLegend() {
+    var cnt = legendCounts();
     legendBox.innerHTML = legendList.map(function (c) {
       var sep = c.tag === CFG.NO_CLAN.tag
         ? ";margin-top:6px;padding-top:9px;border-top:1px solid rgba(255,255,255,.12)" : "";
@@ -828,7 +974,7 @@
         esc(c.tag) + "' style='border-radius:8px" + sep + "'>" +
         "<span class='swatch' style='background:" + c.color + "'></span>" +
         "<span class='lname'>" + esc(c.name) + "</span>" +
-        "<span class='lcount'>" + c.count + "</span></div>";
+        "<span class='lcount'>" + (cnt[c.tag] || 0) + "</span></div>";
     }).join("");
     legendBox.querySelectorAll("[data-clan]").forEach(function (el) {
       el.onclick = function () {
@@ -839,6 +985,32 @@
     });
   }
   document.getElementById("legend-all").onclick = function () { state.hidden = {}; render(); };
+
+  // -------------------------------------------------- köşe kutularını aç/kapat
+  // Klanlar ve Aghustos kutuları başlıklarından katlanır. Tercih tarayıcıda
+  // saklanır. Dar ekranda haritaya yer kalsın diye varsayılan kapalı.
+  var BOXKEY = "atlas-kutu-";
+  function setBox(box, collapsed) {
+    box.classList.toggle("collapsed", collapsed);
+    var t = box.querySelector(".box-toggle");
+    if (t) t.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  function initBox(id) {
+    var box = document.getElementById(id);
+    if (!box) return;
+    var saved = null;
+    try { saved = localStorage.getItem(BOXKEY + id); } catch (e) { /* gizli sekme */ }
+    var dar = window.matchMedia("(max-width:820px)").matches;
+    setBox(box, saved ? saved === "kapali" : dar);
+    var btn = box.querySelector(".box-toggle");
+    if (btn) btn.onclick = function () {
+      var kapali = !box.classList.contains("collapsed");
+      setBox(box, kapali);
+      try { localStorage.setItem(BOXKEY + id, kapali ? "kapali" : "acik"); } catch (e) {}
+    };
+  }
+  initBox("legend");
+  initBox("social");
 
   // -------------------------------------------------------------------- arama
   var search = document.getElementById("search");
@@ -859,6 +1031,7 @@
   };
   document.getElementById("btn-reset").onclick = function () {
     state.hidden = {}; state.query = ""; search.value = "";
+    resetTime();
     select(null); userMoved = false; fit(true, true);
   };
   var help = document.getElementById("help");
@@ -872,14 +1045,141 @@
     else if ((e.key === "r" || e.key === "R") && document.activeElement !== search) { document.getElementById("btn-reset").click(); }
   });
 
+  // ------------------------------------------------------------ zaman çizgisi
+  // Yerleşim TÜM veriyle bir kez hesaplanıp donduruldu; zaman çizgisi
+  // konumlara dokunmuyor. Sadece o tarihe kadar ortaya çıkmış olanlar çizilir
+  // ve baloncuklar o tarihteki video sayısı kadar büyür. Böylece çubuğu
+  // sürüklerken topluluk yerinde büyüyor — harita her adımda baştan
+  // dağılmıyor, kimse yer değiştirmiyor.
+  //
+  // Ölçek (rScale) tüm zamanların en yükseğine göre sabit; yoksa her adımda
+  // en büyük baloncuk yeniden 58px olur ve büyüme hissi kaybolurdu.
+  var timeStops = (function () {
+    var seen = {}, out = [];
+    (DATA.videos || []).forEach(function (v) {
+      if (v.date && !seen[v.date]) { seen[v.date] = 1; out.push(v.date); }
+    });
+    return out.sort();
+  }());
+  state.tIdx = timeStops.length ? timeStops.length - 1 : 0;
+  var tActive = players.length;
+
+  function timeCut() { return timeStops.length ? timeStops[state.tIdx] : "9999-12-31"; }
+  function atEnd() { return !timeStops.length || state.tIdx === timeStops.length - 1; }
+  function videoDateOf(id) { var v = videoById[id]; return (v && v.date) || ""; }
+  function activeVideos() {
+    var cut = timeCut(), n = 0;
+    (DATA.videos || []).forEach(function (v) { if ((v.date || "") <= cut) n++; });
+    return n;
+  }
+  function activeClans() {
+    var seen = {}, n = 0;
+    players.forEach(function (p) {
+      if (!p.count || p.isPublic || seen[p.clan]) return;
+      seen[p.clan] = 1; n++;
+    });
+    return n;
+  }
+
+  function applyTime() {
+    var cut = timeCut(), act = 0;
+    players.forEach(function (p) {
+      var c = 0;
+      // p.dates sıralı: ilk büyük tarihte durabiliriz.
+      for (var i = 0; i < p.dates.length; i++) {
+        if (p.dates[i] <= cut) c++; else break;
+      }
+      p.count = c;
+      p.r = c ? rScale(c) : 0;
+      p.firstDate = c ? p.dates[0] : "";
+      p.lastDate = c ? p.dates[c - 1] : "";
+      if (c) act++;
+    });
+    tActive = act;
+    center.count = activeVideos();
+    node.select("circle.bub").attr("r", function (d) { return d.isCenter ? CFG.R_CENTER : d.r; });
+    hubPath.attr("d", edgePath(hubLinks.filter(function (l) { return l.target.count > 0; })));
+    // Seçili kişi o tarihte henüz yoksa paneli kapat.
+    if (state.selected && playerById[state.selected] && !playerById[state.selected].count) {
+      select(null);
+    }
+    renderStats();
+    renderLegend();
+    render();
+  }
+
+  var tlBox = document.getElementById("timeline");
+  var tlRange = document.getElementById("tl-range");
+  var tlDate = document.getElementById("tl-date");
+  var tlPlay = document.getElementById("tl-play");
+  var tlEnd = document.getElementById("tl-end");
+  var playTimer = null;
+
+  function setTime(i) {
+    if (!timeStops.length) return;
+    i = Math.max(0, Math.min(timeStops.length - 1, i));
+    if (i !== state.tIdx) { state.tIdx = i; applyTime(); }
+    syncTimeline();
+  }
+  function syncTimeline() {
+    if (!timeStops.length) return;
+    tlRange.value = state.tIdx;
+    var pct = timeStops.length > 1 ? (state.tIdx / (timeStops.length - 1)) * 100 : 100;
+    tlRange.style.setProperty("--pct", pct + "%");
+    tlDate.textContent = fmtDate(timeCut());
+    tlBox.classList.toggle("at-end", atEnd());
+    tlPlay.textContent = playTimer ? "❚❚" : "▶";
+    tlPlay.title = playTimer ? "Durdur" : "Oynat";
+  }
+  function startPlay() {
+    if (!timeStops.length || playTimer) return;
+    if (atEnd()) setTime(0);              // sondaysak baştan al
+    playTimer = setInterval(function () {
+      if (atEnd()) { stopPlay(); return; }
+      setTime(state.tIdx + 1);
+    }, 220);
+    syncTimeline();
+  }
+  function stopPlay() {
+    if (!playTimer) return;
+    clearInterval(playTimer); playTimer = null; syncTimeline();
+  }
+  function resetTime() { stopPlay(); setTime(timeStops.length - 1); }
+
+  if (!timeStops.length) {
+    if (tlBox) tlBox.hidden = true;       // tarihsiz veri: çubuğun anlamı yok
+  } else {
+    tlRange.min = 0;
+    tlRange.max = timeStops.length - 1;
+    tlRange.value = state.tIdx;
+    tlRange.addEventListener("input", function () { stopPlay(); setTime(+tlRange.value); });
+    tlPlay.onclick = function () { playTimer ? stopPlay() : startPlay(); };
+    tlEnd.onclick = resetTime;
+    syncTimeline();
+  }
+
   // -------------------------------------------------------------------- alt bar
-  document.getElementById("stats").innerHTML =
-    "<span><b>" + players.length + "</b> oyuncu</span>" +
-    "<span><b>" + (DATA.videos || []).length + "</b> video</span>" +
-    "<span><b>" + clanList.length + "</b> klan</span>" +
-    (teams.length ? "<span><b>" + teams.length + "</b> takım</span>" : "") +
-    (publicClan.count > 0 ? "<span><b>" + publicClan.count + "</b> public</span>" : "") +
-    "<span><b>" + players.reduce(function (a, p) { return a + p.count; }, 0) + "</b> katılım</span>";
+  function renderStats() {
+    var nPlayer = 0, nJoin = 0, nPub = 0, nClan = 0, nTeam = 0, cSeen = {}, tSeen = {};
+    players.forEach(function (p) {
+      if (!p.count) return;
+      nPlayer++; nJoin += p.count;
+      if (p.teamTag) {
+        if (!tSeen[p.teamTag]) { tSeen[p.teamTag] = 1; nTeam++; }
+      } else if (p.isPublic) {
+        nPub++;
+      }
+      if (!p.isPublic && !cSeen[p.clan]) { cSeen[p.clan] = 1; nClan++; }
+    });
+    document.getElementById("stats").innerHTML =
+      "<span><b>" + nPlayer + "</b> oyuncu</span>" +
+      "<span><b>" + activeVideos() + "</b> video</span>" +
+      "<span><b>" + nClan + "</b> klan</span>" +
+      (nTeam ? "<span><b>" + nTeam + "</b> takım</span>" : "") +
+      (nPub ? "<span><b>" + nPub + "</b> public</span>" : "") +
+      "<span><b>" + nJoin + "</b> katılım</span>";
+  }
+  renderStats();
 
   var sub = document.getElementById("brand-sub");
   if (sub && DATA.center && DATA.center.subtitle) sub.textContent = DATA.center.subtitle;

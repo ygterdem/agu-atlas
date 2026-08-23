@@ -74,14 +74,18 @@ body{
 .link{stroke:#ffffff;stroke-opacity:.10;fill:none}
 .node{cursor:pointer}
 .node circle{transition:opacity .18s,stroke-width .15s}
-.node text{
-  font-size:11px;font-weight:500;fill:#dfe4f7;paint-order:stroke;
+/* İsimler artık .node içinde değil, en üstteki .labels katmanında. */
+.lbl{
+  /* punto CFG.LABEL_FONT'tan gelir (.labels grubuna yazılır) */
+  font-weight:500;fill:#dfe4f7;paint-order:stroke;
   stroke:#080a12;stroke-width:3px;stroke-linejoin:round;
   pointer-events:none;user-select:none;
 }
-.node.center text{font-size:15px;font-weight:800;fill:#fff}
+.lbl.center{font-size:15px;font-weight:800;fill:#fff}
+/* Baloncuğun içine yazılan isim: zemin zaten dolu, kontura gerek yok. */
+.lbl.inside{stroke-width:0;font-weight:700}
 .faded{opacity:.10 !important}
-.faded text{opacity:0}
+.lbl.faded{opacity:0}
 .hide-label{display:none}
 
 /* ---------- tooltip ---------- */
@@ -104,6 +108,20 @@ body{
 }
 .legend-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;
   letter-spacing:.6px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:6px}
+
+/* Başlığın kendisi aç/kapat düğmesi — ayrı bir ikon aramaya gerek yok. */
+.box-toggle{
+  display:flex;align-items:center;gap:6px;padding:0;background:none;border:0;
+  color:var(--ink-dim);font:inherit;font-size:11px;letter-spacing:.6px;
+  text-transform:uppercase;cursor:pointer;transition:color .14s;
+}
+.box-toggle:hover{color:var(--ink)}
+.box-toggle .chev{font-size:9px;transition:transform .16s;display:inline-block}
+.side-box.collapsed .chev{transform:rotate(-90deg)}
+.side-box.collapsed{max-height:none}
+.side-box.collapsed > :not(.legend-head){display:none}
+.side-box.collapsed .legend-head{margin-bottom:0}
+.side-box.collapsed .mini-btn{display:none}
 .mini-btn{background:none;border:0;color:var(--accent);font:inherit;font-size:11px;cursor:pointer;padding:0}
 #legend-list{overflow-y:auto;flex:1;margin:0 -4px;padding:0 4px}
 .legend-item{
@@ -119,6 +137,17 @@ body{
   display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--ink-dim)}
 .dot-scale{display:flex;align-items:center;gap:3px}
 .dot-scale i{display:block;background:var(--ink-dim);border-radius:50%}
+
+/* ---------- sosyal kutusu ---------- */
+#social{
+  position:absolute;right:16px;bottom:16px;z-index:15;width:190px;
+  background:var(--panel);backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:var(--radius);padding:10px 11px;
+  display:flex;flex-direction:column;
+}
+a.legend-item{text-decoration:none;color:var(--ink)}
+a.legend-item .lcount{opacity:.45}
+a.legend-item:hover .lcount{opacity:.9;color:var(--accent)}
 
 /* ---------- detail panel ---------- */
 .panel{
@@ -172,6 +201,44 @@ body{
 }
 #stats b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
 
+/* ---------- zaman çizgisi ---------- */
+#timeline{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:58px;z-index:14;
+  display:flex;align-items:center;gap:10px;padding:7px 12px;
+  width:min(560px,calc(100vw - 40px));
+  background:var(--panel);backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:99px;
+}
+#timeline[hidden]{display:none}
+#tl-range{
+  flex:1;min-width:0;-webkit-appearance:none;appearance:none;
+  height:4px;border-radius:99px;outline:none;cursor:pointer;
+  background:linear-gradient(90deg,
+    var(--accent) 0%,var(--accent) var(--pct,100%),
+    rgba(255,255,255,.15) var(--pct,100%),rgba(255,255,255,.15) 100%);
+}
+#tl-range::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--accent);border:2px solid #0a0d18;cursor:grab;
+}
+#tl-range::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;background:var(--accent);
+  border:2px solid #0a0d18;cursor:grab;
+}
+#tl-date{
+  font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;
+  font-variant-numeric:tabular-nums;min-width:86px;text-align:right;
+}
+.tl-btn{
+  flex:0 0 auto;width:26px;height:26px;display:grid;place-items:center;
+  border-radius:99px;background:var(--bg-2);border:1px solid var(--line);
+  color:var(--ink-dim);font:inherit;font-size:10px;line-height:1;cursor:pointer;transition:.14s;
+}
+.tl-btn:hover{color:var(--ink);border-color:rgba(255,255,255,.25)}
+.tl-btn.wide{width:auto;padding:0 10px;font-size:11px}
+/* Sonda zaten duruyorsak "Bugün" düğmesinin işi yok. */
+#timeline.at-end .tl-btn.wide{opacity:.35;pointer-events:none}
+
 /* ---------- help modal ---------- */
 .modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;
   background:rgba(4,6,12,.7);backdrop-filter:blur(4px);padding:20px}
@@ -193,6 +260,10 @@ kbd{background:rgba(255,255,255,.08);border:1px solid var(--line);border-bottom-
   #legend{width:170px;left:10px;bottom:10px;max-height:36vh}
   .panel{left:10px;right:10px;top:auto;bottom:10px;width:auto;max-height:58vh}
   #stats{display:none}
+  /* Dar ekranda çubuk, iki köşedeki kutuların üstünde durur. Kutular da
+     varsayılan olarak kapalı açılır (bkz. atlas.js initBox). */
+  #timeline{bottom:52px;width:calc(100vw - 24px)}
+  #social{right:10px;bottom:10px;width:132px}
 }
 
 @media (max-width:560px){

@@ -145,9 +145,12 @@ yazsan bile aynı kişiyi bulur, ikinci bir kayıt açmaz.
 
 | Ne | Nasıl |
 |---|---|
+| Zaman çizgisi | Alttaki çubuğu sürükle → harita o tarihteki hâline döner. `▶` ilk videodan bugüne kadarki büyümeyi oynatır, `Bugün` sona döner |
 | Oyuncu detayı | Baloncuğa tıkla → sağda hangi videolarda oynadığınız listelenir |
 | Arama | Sağ üstteki kutu (`/` tuşu odaklar) — isim veya klan |
 | Klan filtresi | Sol alttaki klan listesinden bir klana tıkla (gizler/gösterir) |
+| Köşe kutuları | **Klanlar** (sol alt) ve **Aghustos** (sağ alt) başlıklarına tıklayınca katlanır; tercih tarayıcıda saklanır |
+| Sosyal hesaplar | Sağ alttaki kutu: YouTube, Instagram, TikTok — hepsi `@aghustos` |
 | Tüm isimler | `Aa` butonu |
 | Görünümü sıfırla | `⟳` butonu veya `R` tuşu |
 | Yakınlaştır / gez | Fare tekerleği / boşluğu sürükle |

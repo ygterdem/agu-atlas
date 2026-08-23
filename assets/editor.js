@@ -249,12 +249,13 @@
   function clanPickOptions(p, vid) {
     var cur = clanAtVideo(p, vid);
     var over = hasClanOverride(p, vid);
-    var html = "<option value='-1'" + (over ? "" : " selected") + ">\u21ba \u015fu anki klan\u0131 (" +
-      esc(clanName(p.clan)) + ")</option>";
-    html += "<option value='-2'" + (over && cur === "" ? " selected" : "") + ">\u2014 Ba\u011f\u0131ms\u0131z \u2014</option>";
+    var html = "<option value='-1' data-color='" + esc(clanColor(p.clan)) + "'" +
+      (over ? "" : " selected") + ">\u21ba \u015fu anki klan\u0131 (" + esc(clanName(p.clan)) + ")</option>";
+    html += "<option value='-2' data-color='#7d87ad'" + (over && cur === "" ? " selected" : "") +
+      ">\u2014 Ba\u011f\u0131ms\u0131z \u2014</option>";
     M.clans.forEach(function (c, i) {
-      html += "<option value='" + i + "'" + (over && cur === c.tag ? " selected" : "") + ">" +
-        esc(c.name) + "</option>";
+      html += "<option value='" + i + "' data-color='" + esc(c.color) + "'" +
+        (over && cur === c.tag ? " selected" : "") + ">" + esc(c.name) + "</option>";
     });
     return html;
   }
@@ -272,7 +273,8 @@
               return "<tr data-n='" + esc(p.name) + "'>" +
                 "<td><span class='swatch' style='display:inline-block;width:9px;height:9px;" +
                   "border-radius:50%;background:" + col + ";margin-right:7px'></span>" + esc(p.name) + "</td>" +
-                "<td><select data-clanat='" + esc(p.name) + "'>" + clanPickOptions(p, selVideo) + "</select></td>" +
+                "<td><select data-clanat='" + esc(p.name) + "' title='T\u0131kla, klan ara'>" +
+                  clanPickOptions(p, selVideo) + "</select></td>" +
                 "<td><button class='btn sm danger' data-rm='" + esc(p.name) + "'>\u00d7</button></td></tr>";
             }).join("") + "</tbody></table></div>"
         : "<span style='font-size:12.5px;color:var(--ink-dim)'>Hen\u00fcz kimse yok.</span>";
@@ -587,13 +589,156 @@
     });
   }
 
+  // ================================================== aramali klan secici
+  // 50'yi askin klan var; duz <select> icinde aranamiyor, goz taramasiyla
+  // bulmak eziyet. Klan secicisine tiklayinca native acilir liste yerine bu
+  // panel cikiyor: yazdikca suzuluyor, ok tuslari + Enter calisiyor.
+  // Secim yine <select>'e yazilip change tetikleniyor, yani kaydetme
+  // mantiginin hicbiri degismiyor.
+  var CF = (function () {
+    var box = null, inp = null, list = null;
+    var target = null, items = [], view = [], idx = 0;
+
+    function build() {
+      box = document.createElement("div");
+      box.className = "clanfind";
+      box.innerHTML =
+        "<input type='search' placeholder='Klan ara\u2026' autocomplete='off' spellcheck='false'>" +
+        "<div class='cf-list'></div>" +
+        "<div class='cf-foot'>\u2191\u2193 gez \u00b7 Enter se\u00e7 \u00b7 Esc kapat</div>";
+      document.body.appendChild(box);
+      inp = box.querySelector("input");
+      list = box.querySelector(".cf-list");
+      inp.addEventListener("input", function () { idx = 0; draw(); });
+      inp.addEventListener("keydown", key);
+      list.addEventListener("mousedown", function (e) {
+        var d = e.target.closest ? e.target.closest("[data-k]") : null;
+        if (!d) return;
+        e.preventDefault();
+        pick(view[+d.getAttribute("data-k")]);
+      });
+    }
+
+    function draw() {
+      var q = norm(inp.value), html = "";
+      view = [];
+      items.forEach(function (it, i) {
+        if (!q || norm(it.t).indexOf(q) !== -1) view.push(i);
+      });
+      if (idx >= view.length) idx = view.length - 1;
+      if (idx < 0) idx = 0;
+      view.forEach(function (i, k) {
+        var it = items[i];
+        html += "<div data-k='" + k + "'" + (k === idx ? " class='sel'" : "") + ">" +
+          "<span class='swatch'" + (it.c ? " style='background:" + esc(it.c) + "'" : "") + "></span>" +
+          "<span class='cf-t'>" + esc(it.t) + "</span>" +
+          (it.on ? "<span class='cf-on'>\u2713</span>" : "") + "</div>";
+      });
+      list.innerHTML = view.length ? html : "<div class='cf-empty'>E\u015fle\u015fen klan yok.</div>";
+      var s = list.querySelector(".sel");
+      if (s && s.scrollIntoView) s.scrollIntoView({ block: "nearest" });
+    }
+
+    function place(sel) {
+      var r = sel.getBoundingClientRect();
+      box.style.minWidth = Math.max(r.width, 230) + "px";
+      box.style.visibility = "hidden";
+      box.classList.add("on");
+      var h = box.offsetHeight, w = box.offsetWidth;
+      var top = r.bottom + 4;
+      if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - 4 - h);
+      box.style.top = top + "px";
+      box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+      box.style.visibility = "";
+    }
+
+    function key(e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!view.length) return;
+        idx = (idx + (e.key === "ArrowDown" ? 1 : -1) + view.length) % view.length;
+        draw();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (view.length) pick(view[idx]);
+      } else if (e.key === "Escape") {
+        e.preventDefault(); close(true);
+      } else if (e.key === "Tab") {
+        close(true);
+      }
+    }
+
+    function pick(i) {
+      var sel = target, it = items[i];
+      close(false);
+      if (!sel || !it) return;
+      sel.value = it.v;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function close(refocus) {
+      if (!box) return;
+      box.classList.remove("on");
+      var t = target;
+      target = null;
+      if (refocus && t && document.contains(t)) t.focus();
+    }
+
+    return {
+      open: function (sel, seed) {
+        if (!box) build();
+        target = sel;
+        items = [].slice.call(sel.options).map(function (o) {
+          return { v: o.value, t: o.textContent, c: o.getAttribute("data-color") || "", on: o.selected };
+        });
+        idx = 0;
+        items.forEach(function (it, i) { if (it.on) idx = i; });
+        inp.value = seed || "";
+        if (seed) idx = 0;
+        draw();
+        place(sel);
+        inp.focus();
+        inp.select();
+      },
+      close: close,
+      inside: function (el) { return !!(box && el && box.contains(el)); }
+    };
+  }());
+
+  function isClanSelect(el) {
+    return !!el && el.tagName === "SELECT" &&
+      (el.id === "p-clan" || el.hasAttribute("data-clanat") ||
+       el.getAttribute("data-f") === "clan");
+  }
+
+  document.addEventListener("mousedown", function (e) {
+    if (isClanSelect(e.target)) { e.preventDefault(); CF.open(e.target); return; }
+    if (!CF.inside(e.target)) CF.close(false);
+  }, true);
+
+  document.addEventListener("keydown", function (e) {
+    var t = document.activeElement;
+    if (!isClanSelect(t) || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+      e.preventDefault(); CF.open(t);
+    } else if (e.key.length === 1) {
+      e.preventDefault(); CF.open(t, e.key);
+    }
+  });
+
+  window.addEventListener("resize", function () { CF.close(false); });
+  window.addEventListener("scroll", function (e) {
+    if (!CF.inside(e.target)) CF.close(false);
+  }, true);
+
   // ============================================================== OYUNCULAR
   function clanOptions(selected) {
     var orphan = selected && !clanByTag(selected);
-    return "<option value=''" + (selected ? "" : " selected") + ">— Public —</option>" +
+    return "<option value='' data-color='#7d87ad'" + (selected ? "" : " selected") +
+      ">— Public —</option>" +
       M.clans.map(function (c) {
-        return "<option value='" + esc(c.tag) + "'" + (c.tag === selected ? " selected" : "") + ">" +
-          esc(c.name) + "</option>";
+        return "<option value='" + esc(c.tag) + "' data-color='" + esc(c.color) + "'" +
+          (c.tag === selected ? " selected" : "") + ">" + esc(c.name) + "</option>";
       }).join("") +
       (orphan ? "<option value='" + esc(selected) + "' selected>⚠ " + esc(selected) +
         " (tanımsız klan)</option>" : "");
@@ -634,7 +779,7 @@
           "<td><input type='text' data-f='name' value='" + esc(p.name) + "'></td>" +
           "<td><input type='text' data-f='aliases' value='" + esc((p.aliases || []).join(", ")) +
             "' placeholder='eski adı, takma adı' title='Virgülle ayır'></td>" +
-          "<td><select data-f='clan'>" + clanOptions(p.clan) + "</select></td>" +
+          "<td><select data-f='clan' title='T\u0131kla, klan ara'>" + clanOptions(p.clan) + "</select></td>" +
           "<td><input type='url' data-f='link' value='" + esc(p.link) + "'></td>" +
           "<td><input type='text' data-f='note' value='" + esc(p.note) + "'></td>" +
           "<td class='num'" + (p.videos.length ? "" : " style='color:#ff9d9d'") + ">" + p.videos.length + "</td>" +

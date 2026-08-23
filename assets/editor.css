@@ -191,3 +191,34 @@ code.out{
 #r-clanedit{padding:3px 8px;font-size:11px;text-transform:none;letter-spacing:0}
 #r-clanedit.on{color:#0a0d18;background:var(--accent);border-color:var(--accent)}
 .squad table.t{margin-top:4px}
+
+/* ---- aramalı klan seçici ----
+   50'yi aşkın klan var; düz <select> içinde göz taramasıyla bulunmuyor.
+   Klan seçicisine tıklayınca native açılır liste yerine bu panel çıkıyor. */
+.clanfind{
+  position:fixed;z-index:90;display:none;min-width:230px;max-width:340px;
+  background:#11162a;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 18px 44px rgba(0,0,0,.6);overflow:hidden;
+}
+.clanfind.on{display:block}
+.clanfind input{
+  width:100%;box-sizing:border-box;padding:9px 11px;border:0;
+  border-bottom:1px solid var(--line);background:rgba(255,255,255,.05);
+  color:var(--ink);font:inherit;font-size:13px;outline:none;
+}
+.clanfind input::placeholder{color:var(--ink-dim)}
+.clanfind input::-webkit-search-cancel-button{display:none}
+.cf-list{max-height:262px;overflow-y:auto}
+.cf-list div{
+  padding:8px 11px;cursor:pointer;font-size:13px;
+  display:flex;align-items:center;gap:8px;
+}
+.cf-list div:hover,.cf-list div.sel{background:rgba(255,209,102,.16)}
+.cf-list .cf-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-list .swatch{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:#7d87ad}
+.cf-list .cf-on{margin-left:auto;color:var(--accent);font-size:12px}
+.cf-empty{padding:10px 11px;font-size:12.5px;color:var(--ink-dim)}
+.cf-foot{
+  padding:6px 11px;border-top:1px solid var(--line);font-size:11px;
+  color:var(--ink-dim);background:rgba(255,255,255,.02);
+}

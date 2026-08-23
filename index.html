@@ -43,9 +43,11 @@
 
     <div id="tooltip" class="tooltip" hidden></div>
 
-    <aside id="legend">
+    <aside id="legend" class="side-box">
       <div class="legend-head">
-        <span>Klanlar</span>
+        <button class="box-toggle" data-box="legend" title="Aç / kapat" aria-expanded="true">
+          <span class="chev">▾</span> Klanlar
+        </button>
         <button id="legend-all" class="mini-btn">Tümü</button>
       </div>
       <div id="legend-list"></div>
@@ -55,10 +57,37 @@
       </div>
     </aside>
 
+    <aside id="social" class="side-box">
+      <div class="legend-head">
+        <button class="box-toggle" data-box="social" title="Aç / kapat" aria-expanded="true">
+          <span class="chev">▾</span> Aghustos
+        </button>
+      </div>
+      <div id="social-list">
+        <a class="legend-item soc" href="https://www.youtube.com/@aghustos" target="_blank" rel="noopener">
+          <span class="swatch" style="background:#ff0033"></span>
+          <span class="lname">YouTube</span><span class="lcount">↗</span></a>
+        <a class="legend-item soc" href="https://www.instagram.com/aghustos/" target="_blank" rel="noopener">
+          <span class="swatch" style="background:#e1306c"></span>
+          <span class="lname">Instagram</span><span class="lcount">↗</span></a>
+        <a class="legend-item soc" href="https://www.tiktok.com/@aghustos" target="_blank" rel="noopener">
+          <span class="swatch" style="background:#25f4ee"></span>
+          <span class="lname">TikTok</span><span class="lcount">↗</span></a>
+      </div>
+      <div class="legend-foot"><span>Hepsi <b style="color:var(--ink)">@aghustos</b></span></div>
+    </aside>
+
     <aside id="panel" class="panel" hidden>
       <button id="panel-close" class="panel-close" aria-label="Kapat">×</button>
       <div id="panel-body"></div>
     </aside>
+
+    <div id="timeline">
+      <button id="tl-play" class="tl-btn" title="Oynat" aria-label="Zaman çizgisini oynat">▶</button>
+      <input id="tl-range" type="range" min="0" max="0" step="1" value="0" aria-label="Tarih seç">
+      <span id="tl-date">—</span>
+      <button id="tl-end" class="tl-btn wide" title="Tüm zamanlar">Bugün</button>
+    </div>
 
     <footer id="stats"></footer>
   </main>
@@ -77,6 +106,7 @@
         <li>Bir baloncuğa <b>tıkla</b> → o kişinin <b>kimlerle oynadığı</b> çizgilerle çıkar, sadece onlar parlar; sağda hangi videolarda oynadığımız listelenir. Boşluğa tıklayınca çizgiler kaybolur.</li>
         <li>İsim değiştirenlerin <b>eski adları</b> da kayıtlı; arama kutusunda eski adıyla da bulunur.</li>
         <li>Klan değiştirenlerin <b>klan geçmişi</b> panelde görünür; eski klanın adıyla da aratabilirsin. Baloncuğun rengi her zaman <b>şu anki</b> klanıdır.</li>
+        <li>Alttaki <b>zaman çizgisini</b> sürükle → harita o tarihteki hâline döner: o güne kadar hiç oynamamışlar kaybolur, baloncuklar o günkü video sayısı kadar küçülür. <b>▶</b> ile ilk videodan bugüne kadarki büyümeyi izle. Baloncuklar yerlerinden kıpırdamaz, sadece belirip büyürler.</li>
         <li>Tekerlek ile <b>yakınlaştır</b>, boşluğu sürükleyerek <b>gez</b>.</li>
         <li>Baloncuklar <b>hiç kıpırdamaz</b> — sürüklenemezler, her açılışta tam olarak aynı yerdedirler.</li>
       </ul>
