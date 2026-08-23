@@ -10,8 +10,3 @@ oynayanlar haritada kendiliğinden bir küme oluşturur.
 - **Alttaki çubuk** = zaman çizgisi; haritayı o tarihteki hâline döndürür
 
 **Site:** https://ygterdem.github.io/agu-atlas/
-
----
-
-Kararlar, ayar düğmeleri, veri modeli ve geliştirme notları:
-**[NOTLAR.md](NOTLAR.md)**

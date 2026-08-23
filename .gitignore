@@ -5,3 +5,8 @@
 editor.html
 assets/editor.js
 assets/editor.css
+
+# Geliştirme notları da yayında olmasın (aynı sebep: Pages main'i olduğu
+# gibi sunuyor). Yedeği "notlar" dalında:
+#   git checkout notlar -- NOTLAR.md
+NOTLAR.md
